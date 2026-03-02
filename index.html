@@ -38,7 +38,6 @@
             min-width: 120px;
         }
 
-        /* Style untuk GPS Offline/Mati */
         .status-offline { 
             background-color: #fff0f0 !important; 
             border: 2px solid #ff4d4d !important; 
@@ -52,6 +51,7 @@
 
         .warning-text { color: #d93025; font-size: 10px; margin-top: 2px; }
         .success-text { color: #28a745; font-size: 10px; margin-top: 2px; }
+        .off-text { color: #888; font-size: 10px; margin-top: 2px; }
 
         .target-reached { color: #28a745 !important; border-color: #28a745; background: #f4fff7; }
         
@@ -60,7 +60,6 @@
             border-radius: 6px; 
             border: 1px solid #ccd0d5; 
             background: white;
-            outline: none;
         }
 
         button { 
@@ -71,10 +70,7 @@
             border-radius: 6px; 
             font-weight: bold;
             cursor: pointer; 
-            transition: 0.3s;
         }
-
-        button:hover { background: #0073e6; }
 
         .custom-popup .leaflet-popup-content-wrapper { border-radius: 12px; padding: 5px; }
         .btn-view {
@@ -87,7 +83,6 @@
             text-decoration: none;
             margin-top: 10px;
             font-size: 12px;
-            font-weight: bold;
         }
     </style>
 </head>
@@ -116,11 +111,7 @@
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
     let map = L.map('map').setView([-7.2575, 112.7521], 12);
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© Pihak ke 3 Bot'
-    }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© Pihak ke 3 Bot' }).addTo(map);
 
     let allData = [];
     let polylineGroup = L.featureGroup().addTo(map);
@@ -138,10 +129,8 @@
         try {
             const response = await fetch(GAS_URL);
             allData = await response.json();
-            
             const select = document.getElementById('selectTeknisi');
             const valSebelumnya = select.value;
-            
             const daftarNama = [...new Set(allData.map(item => item.Nama))].filter(n => n && n !== "Unknown");
             select.innerHTML = '<option value="">-- Semua Teknisi --</option>';
             daftarNama.forEach(nama => {
@@ -149,7 +138,6 @@
                 opt.value = nama; opt.innerHTML = nama;
                 select.appendChild(opt);
             });
-            
             select.value = valSebelumnya;
             renderMaps();
         } catch (e) { console.error("Error:", e); }
@@ -172,14 +160,16 @@
         let totalLaporan = 0;
         let totalJarak = 0;
         let waktuTerakhir = null;
+        let ketTerakhir = "";
         const perUser = {};
 
         filtered.forEach((d, i) => {
-            // Catat waktu terbaru teknisi
             const tglData = new Date(d.Timestamp);
-            if (!waktuTerakhir || tglData > waktuTerakhir) waktuTerakhir = tglData;
+            if (!waktuTerakhir || tglData > waktuTerakhir) {
+                waktuTerakhir = tglData;
+                ketTerakhir = d.Keterangan;
+            }
 
-            // Logika Foto
             if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
                 totalLaporan++;
                 let lat = d.Latitude, lon = d.Longitude;
@@ -188,18 +178,11 @@
                     if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
                 }
                 if (lat && lat != 0) {
-                    const popupMsg = `
-                        <div style="text-align:center">
-                            <b>Temuan ${d.Nama}</b><br>
-                            <small>${new Date(d.Timestamp).toLocaleTimeString()}</small><br>
-                            <p style="margin:5px 0">${d.Keterangan}</p>
-                            <a href="${d.Photo_URL}" target="_blank" class="btn-view">📂 Buka di Telegram</a>
-                        </div>`;
+                    const popupMsg = `<div style="text-align:center"><b>Temuan ${d.Nama}</b><br><small>${new Date(d.Timestamp).toLocaleTimeString()}</small><br><p style="margin:5px 0">${d.Keterangan}</p><a href="${d.Photo_URL}" target="_blank" class="btn-view">📂 Buka di Telegram</a></div>`;
                     L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg, {className: 'custom-popup'});
                 }
             }
 
-            // Jalur Tracking
             if (d.Latitude && d.Longitude && d.Latitude != 0) {
                 if (!perUser[d.Nama]) perUser[d.Nama] = [];
                 perUser[d.Nama].push([d.Latitude, d.Longitude]);
@@ -217,17 +200,25 @@
             }
         });
 
-        // UPDATE UI STATS & CEK GPS
+        // UPDATE UI STATS & LOGIKA PINTAR GPS
         const distElem = document.getElementById('jarakTempuh');
         let statusHtml = "";
         
         if (teknisiSel && waktuTerakhir) {
             const selisihMenit = Math.floor((sekarang - waktuTerakhir) / 60000);
-            
-            if (selisihMenit >= 5) {
+            // Cek apakah status terakhir adalah Selesai atau OFF
+            const isSudahOff = ketTerakhir.includes("Selesai") || ketTerakhir.includes("OFF");
+
+            if (!isSudahOff && selisihMenit >= 5) {
+                // Berkedip merah hanya jika HARUSNYA aktif tapi tidak kirim data
                 distElem.classList.add('status-offline');
-                statusHtml = `<span class="warning-text">⚠️ OFFLINE ${selisihMenit} MENIT</span>`;
+                statusHtml = `<span class="warning-text">⚠️ GPS MACET ${selisihMenit} MENIT</span>`;
+            } else if (isSudahOff) {
+                // Jika statusnya OFF, tampilkan abu-abu tenang
+                distElem.classList.remove('status-offline');
+                statusHtml = `<span class="off-text">💤 SURVEY SELESAI / OFF</span>`;
             } else {
+                // Jika masih dalam rentang waktu aman
                 distElem.classList.remove('status-offline');
                 statusHtml = `<span class="success-text">✅ GPS AKTIF</span>`;
             }
@@ -236,10 +227,8 @@
         }
 
         distElem.innerHTML = `<div>📍 ${totalJarak.toFixed(2)} KM</div> ${statusHtml}`;
-        
         if (totalJarak >= 2) distElem.classList.add('target-reached');
         else distElem.classList.remove('target-reached');
-        
         document.getElementById('totalLaporan').innerHTML = `<div>📸 ${totalLaporan} Foto</div>`;
         
         if (filtered.length > 0) {
