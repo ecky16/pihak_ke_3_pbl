@@ -10,27 +10,21 @@ module.exports = async (req, res) => {
   if (!msg) return res.status(200).send('OK');
 
   const chatId = msg.chat.id.toString();
-const text = msg.text || "";
-
-try {
-  // 1. CEK APAKAH USER TERDAFTAR (WHITELIST)
-  // Kita panggil GAS untuk cek apakah ID ini ada di db_subscriber
-  const checkUser = await axios.post(GAS_URL, { 
-    chatId: chatId, 
-    action: 'check_user' 
-  });
-
-  if (checkUser.data.status === 'unauthorized') {
-    // Jika tidak terdaftar, hentikan proses dan beri tahu user
-    return res.status(200).json({
-      method: 'sendMessage',
-      chat_id: chatId,
-      text: "⚠️ **Akses Ditolak!**\n\nID Anda (" + chatId + ") tidak terdaftar dalam database tim Survey Pihak ke 3. Silakan hubungi Mas Ecky untuk pendaftaran."
-    });
-  }
+  const text = msg.text || "";
 
   try {
-    // MENU UTAMA / START
+    // 1. CEK WHITELIST (Pintu Gerbang Utama)
+    const checkUser = await axios.post(GAS_URL, { chatId: chatId, action: 'check_user' });
+
+    if (checkUser.data.status === 'unauthorized') {
+      return res.status(200).json({
+        method: 'sendMessage',
+        chat_id: chatId,
+        text: "⚠️ **Akses Ditolak!**\n\nID Anda (" + chatId + ") tidak terdaftar. Hubungi Mas Ecky untuk pendaftaran."
+      });
+    }
+
+    // 2. MENU UTAMA
     if (text === '/start' || text === 'Kembali') {
       return res.status(200).json({
         method: 'sendMessage', chat_id: chatId,
@@ -42,13 +36,13 @@ try {
       });
     }
 
-    // TERIMA LOKASI (START / TRACKING)
+    // 3. TERIMA LOKASI
     if (msg.location) {
       await axios.post(GAS_URL, { chatId, lat: msg.location.latitude, lon: msg.location.longitude, action: message ? 'start_survey' : 'tracking' });
       if (message) {
         return res.status(200).json({
           method: 'sendMessage', chat_id: chatId,
-          text: `✅ **Survey Aktif!**\n\n1. Pilih **'Share Live Location 8 Jam'** pada baris di atas.\n2. Jika ada temuan, klik ikon 📸 **Kamera** dan kirim foto.\n3. Masukkan keterangan setelah foto terkirim.`,
+          text: `✅ **Survey Aktif!**\n\n1. Pilih **'Share Live Location 8 Jam'** di bar atas.\n2. Jika ada temuan, klik 📸 **Kamera**.\n3. Masukkan keterangan setelah foto terkirim.`,
           reply_markup: { keyboard: [[{ text: "📸 KIRIM LAPORAN FOTO" }], [{ text: "🏁 SELESAI" }]], resize_keyboard: true },
           parse_mode: 'Markdown'
         });
@@ -56,61 +50,36 @@ try {
       return res.status(200).send('OK');
     }
 
-    // TERIMA FOTO
-  // 3. LOGIKA TERIMA FOTO + VALIDASI GPS
+    // 4. TERIMA FOTO + VALIDASI
     if (msg.photo) {
-      // Cek apakah lokasi ada (Telegram biasanya kirim lokasi bersamaan dengan foto jika GPS aktif)
-      // Atau kita cek apakah mereka sudah kirim lokasi sebelumnya
       if (!msg.location && (!msg.reply_to_message || !msg.reply_to_message.location)) {
         return res.status(200).json({
-          method: 'sendMessage',
-          chat_id: chatId,
-          text: '⚠️ **Laporan Ditolak!**\n\nGPS Anda tidak terdeteksi. Silakan klik tombol **🚀 MULAI SURVEY** (Live Location 8 Jam) terlebih dahulu sebelum mengirim foto agar posisi temuan tercatat di Map.',
-          parse_mode: 'Markdown'
+          method: 'sendMessage', chat_id: chatId,
+          text: '⚠️ **Laporan Ditolak!**\n\nNyalakan Live Location dulu sebelum kirim foto agar lokasi temuan tercatat.'
         });
       }
-
       const photoId = msg.photo[msg.photo.length - 1].file_id;
-      const forward = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, { 
-        chat_id: CHANNEL_ID, 
-        photo: photoId, 
-        caption: `Laporan Lapangan dari ID: ${chatId}` 
-      });
-
+      const forward = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, { chat_id: CHANNEL_ID, photo: photoId, caption: `Laporan Lapangan dari ID: ${chatId}` });
       const photoUrl = `https://t.me/c/${CHANNEL_ID.replace('-100','')}/${forward.data.result.message_id}`;
-      
       await axios.post(GAS_URL, { chatId, foto: photoUrl, action: 'temp_photo' });
-      return res.status(200).json({ 
-        method: 'sendMessage', 
-        chat_id: chatId, 
-        text: '📸 **Foto diterima!**\n\nSilakan masukkan **keterangan temuan :**' 
-      });
+      return res.status(200).json({ method: 'sendMessage', chat_id: chatId, text: '📸 **Foto diterima!**\n\nMasukkan keterangan temuan:' });
     }
 
-    // TERIMA TEKS (KETERANGAN)
+    // 5. UPDATE KETERANGAN
     if (text && !text.includes('/') && text !== '🏁 SELESAI' && text !== '📸 KIRIM LAPORAN FOTO') {
       await axios.post(GAS_URL, { chatId, keterangan: text, action: 'update_keterangan' });
       return res.status(200).json({ method: 'sendMessage', chat_id: chatId, text: '✅ Keterangan disimpan!' });
     }
 
-    // SELESAI
- // 5. LOGIKA SELESAI SURVEY (GANTI BAGIAN INI)
-    // LOGIKA SELESAI SURVEY
+    // 6. SELESAI
     if (text === '🏁 SELESAI') {
-      await axios.post(GAS_URL, { chatId: chatId, action: 'stop_survey' });
-      
+      await axios.post(GAS_URL, { chatId, action: 'stop_survey' });
       return res.status(200).json({
-        method: 'sendMessage',
-        chat_id: chatId,
-        text: 'Tugas Selesai! ✅\n\nSistem sudah berhenti mencatat lokasi Anda.\n\n*Catatan:* Jika bar "Stop Sharing" tidak muncul, silakan matikan GPS HP sebentar agar baterai awet.',
-        reply_markup: {
-          keyboard: [[{ text: "🚀 MULAI SURVEY", request_location: true }]],
-          resize_keyboard: true
-        },
-        parse_mode: 'Markdown'
+        method: 'sendMessage', chat_id: chatId,
+        text: 'Tugas Selesai! ✅\n\nSistem berhenti mencatat lokasi. Silakan matikan GPS agar hemat baterai.',
+        reply_markup: { keyboard: [[{ text: "🚀 MULAI SURVEY", request_location: true }]], resize_keyboard: true }
       });
     }
 
-  } catch (e) { console.log(e.message); }
-  res.status(200).send('OK');
-};
+  } catch (e) { console.error("Error Webhook:", e.message); }
+  res.status
