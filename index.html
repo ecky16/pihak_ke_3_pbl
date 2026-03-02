@@ -3,12 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoring Survey Teknisi - Mas Ecky</title>
+    <title>Monitoring Survey Teknisi Pihak ke 3</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <style>
-        body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        #controls { padding: 15px; background: #f8f9fa; border-bottom: 1px solid #ddd; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        #map { flex: 1; width: 100%; }
+        html, body { height: 100%; margin: 0; padding: 0; }
+        body { font-family: sans-serif; display: flex; flex-direction: column; }
+        #controls { 
+            padding: 15px; 
+            background: #f8f9fa; 
+            border-bottom: 1px solid #ddd; 
+            display: flex; gap: 10px; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            z-index: 1000;
+        }
+        /* Pastikan ID MAP punya tinggi yang tetap */
+        #map { 
+            flex-grow: 1; 
+            height: 100%; 
+            width: 100%; 
+        }
         .stats-box { background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-weight: bold; }
         select, input { padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
         button { padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
@@ -32,10 +48,16 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+    // URL Apps Script Mas Ecky
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
+    // Inisialisasi Map
     let map = L.map('map').setView([-7.2575, 112.7521], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
 
     let allData = [];
     let polylineGroup = L.featureGroup().addTo(map);
@@ -53,18 +75,21 @@
         try {
             const response = await fetch(GAS_URL);
             allData = await response.json();
-            const daftarNama = [...new Set(allData.map(item => item.Nama))];
+            
             const select = document.getElementById('selectTeknisi');
-            const val Sekarang = select.value;
+            const valSebelumnya = select.value;
+            
+            const daftarNama = [...new Set(allData.map(item => item.Nama))];
             select.innerHTML = '<option value="">-- Semua Teknisi --</option>';
             daftarNama.forEach(nama => {
                 const opt = document.createElement('option');
                 opt.value = nama; opt.innerHTML = nama;
                 select.appendChild(opt);
             });
-            select.value = valSekarang;
+            
+            select.value = valSebelumnya;
             renderMaps();
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Data Fetch Error:", e); }
     }
 
     function renderMaps() {
@@ -85,31 +110,27 @@
         const perUser = {};
 
         filtered.forEach((d, i) => {
-            // 1. LOGIKA HITUNG FOTO (Berdasarkan link telegram)
+            // Logika Foto
             if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
                 totalLaporan++;
-                
-                // Jika koordinat foto 0, cari posisi tracking terakhir teknisi ini
                 let lat = d.Latitude, lon = d.Longitude;
                 if (!lat || lat == 0) {
                     const lastPos = filtered.slice(0, i).reverse().find(r => r.Nama === d.Nama && r.Latitude != 0);
                     if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
                 }
-
                 if (lat && lat != 0) {
                     L.marker([lat, lon]).addTo(markerGroup)
                      .bindPopup(`<b>Lap: ${d.Keterangan}</b><br><small>${d.Nama}</small><br><a href="${d.Photo_URL}" target="_blank">Lihat Foto</a>`);
                 }
             }
 
-            // 2. LOGIKA KOORDINAT JALUR
+            // Jalur
             if (d.Latitude && d.Longitude && d.Latitude != 0) {
                 if (!perUser[d.Nama]) perUser[d.Nama] = [];
                 perUser[d.Nama].push([d.Latitude, d.Longitude]);
             }
         });
 
-        // 3. GAMBAR GARIS & HITUNG JARAK
         Object.keys(perUser).forEach(nama => {
             const coords = perUser[nama];
             if (coords.length > 1) {
@@ -124,13 +145,13 @@
         document.getElementById('jarakTempuh').innerText = `Total Jarak: ${totalJarak.toFixed(2)} KM`;
         
         if (filtered.length > 0) {
-            const group = L.featureGroup([polylineGroup, markerGroup]);
-            if (group.getBounds().isValid()) map.fitBounds(group.getBounds());
+            const bounds = L.featureGroup([polylineGroup, markerGroup]).getBounds();
+            if (bounds.isValid()) map.fitBounds(bounds);
         }
     }
 
     fetchData();
-    setInterval(fetchData, 30000); // Auto update tiap 30 detik
+    setInterval(fetchData, 30000); 
 </script>
 </body>
 </html>
