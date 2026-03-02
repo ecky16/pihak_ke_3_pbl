@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monitoring Survey Teknisi</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 600px; width: 100%; }
+        .info { padding: 10px; background: white; }
+    </style>
+</head>
+<body>
+    <h2>Mapping Jalur Survey Teknisi</h2>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([-7.1234, 112.5678], 13); // Sesuaikan koordinat awal (Jawa Timur?)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        const GAS_URL = 'URL_GAS_MAS_ECKY';
+
+        async function loadData() {
+            const response = await fetch(GAS_URL);
+            const data = await response.json();
+
+            // 1. Kelompokkan koordinat per ChatID (per teknisi)
+            const paths = {};
+            data.forEach(row => {
+                if (row.Latitude && row.Longitude && row.Latitude !== 0) {
+                    if (!paths[row.ChatID]) paths[row.ChatID] = [];
+                    paths[row.ChatID].push([row.Latitude, row.Longitude]);
+                    
+                    // Tambah Marker kalau ada foto
+                    if (row.Photo_URL !== '-') {
+                        L.marker([row.Latitude, row.Longitude])
+                         .bindPopup(`<b>${row.Nama}</b><br>${row.Keterangan}<br><a href="${row.Photo_URL}" target="_blank">Lihat Foto</a>`)
+                         .addTo(map);
+                    }
+                }
+            });
+
+            // 2. Gambar Garis (Polyline) untuk tiap teknisi
+            Object.values(paths).forEach(points => {
+                L.polyline(points, {color: 'blue', weight: 4}).addTo(map);
+            });
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
