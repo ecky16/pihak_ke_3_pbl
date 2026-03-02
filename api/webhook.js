@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
     if (text === '/start' || text === 'Kembali') {
       return res.status(200).json({
         method: 'sendMessage', chat_id: chatId,
-        text: `Selamat Datang di Sistem Survey OSA PROBOLINGGO.\n\nKlik **🚀 MULAI SURVEY** untuk mengaktifkan tracking lokasi.`,
+        text: `Selamat Datang di Sistem Survey Pihak ke 3.\n\nKlik **🚀 MULAI SURVEY** untuk mengaktifkan tracking lokasi.`,
         reply_markup: {
           keyboard: [[{ text: "🚀 MULAI SURVEY", request_location: true }], [{ text: "🏁 SELESAI" }]],
           resize_keyboard: true
