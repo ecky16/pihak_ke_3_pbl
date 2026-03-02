@@ -82,7 +82,17 @@ module.exports = async (req, res) => {
         parse_mode: 'Markdown'
       });
     }
-
+if (msg.text === '🏁 Selesai Survey') {
+  return res.status(200).json({
+    method: 'sendMessage',
+    chat_id: chatId,
+    text: "Tugas selesai! ✅\n\n**PENTING:** Jangan lupa klik 'Stop Sharing' pada baris lokasi di atas agar baterai HP Anda tidak boros.",
+    reply_markup: {
+      remove_keyboard: true // Menghilangkan tombol keyboard agar bersih
+    },
+    parse_mode: 'Markdown'
+  });
+}
     // 5. LOGIKA TERIMA TEKS (KETERANGAN TEMUAN)
     if (msg.text && !msg.text.includes('/')) {
        await axios.post(GAS_URL, {
