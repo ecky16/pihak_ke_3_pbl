@@ -33,9 +33,25 @@
             font-size: 14px;
             color: #333;
             display: flex;
-            align-items: center;
-            gap: 5px;
+            flex-direction: column;
+            justify-content: center;
+            min-width: 120px;
         }
+
+        /* Style untuk GPS Offline/Mati */
+        .status-offline { 
+            background-color: #fff0f0 !important; 
+            border: 2px solid #ff4d4d !important; 
+            color: #d93025 !important;
+            animation: blinker 1.5s linear infinite;
+        }
+
+        @keyframes blinker {
+            50% { opacity: 0.7; }
+        }
+
+        .warning-text { color: #d93025; font-size: 10px; margin-top: 2px; }
+        .success-text { color: #28a745; font-size: 10px; margin-top: 2px; }
 
         .target-reached { color: #28a745 !important; border-color: #28a745; background: #f4fff7; }
         
@@ -60,7 +76,6 @@
 
         button:hover { background: #0073e6; }
 
-        /* Custom Popup Style */
         .custom-popup .leaflet-popup-content-wrapper { border-radius: 12px; padding: 5px; }
         .btn-view {
             display: block;
@@ -85,8 +100,12 @@
     <input type="date" id="selectTanggal" onchange="renderMaps()">
     <button onclick="fetchData()">🔄 Refresh</button>
     
-    <div class="stats-box" id="jarakTempuh">📍 0 KM</div>
-    <div class="stats-box" id="totalLaporan">📸 0 Foto</div>
+    <div class="stats-box" id="jarakTempuh">
+        <div>📍 0 KM</div>
+    </div>
+    <div class="stats-box" id="totalLaporan">
+        <div>📸 0 Foto</div>
+    </div>
 </div>
 
 <div id="map"></div>
@@ -139,6 +158,7 @@
     function renderMaps() {
         const teknisiSel = document.getElementById('selectTeknisi').value;
         const tanggalSel = document.getElementById('selectTanggal').value;
+        const sekarang = new Date();
 
         polylineGroup.clearLayers();
         markerGroup.clearLayers();
@@ -151,9 +171,14 @@
 
         let totalLaporan = 0;
         let totalJarak = 0;
+        let waktuTerakhir = null;
         const perUser = {};
 
         filtered.forEach((d, i) => {
+            // Catat waktu terbaru teknisi
+            const tglData = new Date(d.Timestamp);
+            if (!waktuTerakhir || tglData > waktuTerakhir) waktuTerakhir = tglData;
+
             // Logika Foto
             if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
                 totalLaporan++;
@@ -192,13 +217,30 @@
             }
         });
 
-        // Update Stats UI
+        // UPDATE UI STATS & CEK GPS
         const distElem = document.getElementById('jarakTempuh');
-        distElem.innerText = `📍 ${totalJarak.toFixed(2)} KM`;
+        let statusHtml = "";
+        
+        if (teknisiSel && waktuTerakhir) {
+            const selisihMenit = Math.floor((sekarang - waktuTerakhir) / 60000);
+            
+            if (selisihMenit >= 5) {
+                distElem.classList.add('status-offline');
+                statusHtml = `<span class="warning-text">⚠️ OFFLINE ${selisihMenit} MENIT</span>`;
+            } else {
+                distElem.classList.remove('status-offline');
+                statusHtml = `<span class="success-text">✅ GPS AKTIF</span>`;
+            }
+        } else {
+            distElem.classList.remove('status-offline');
+        }
+
+        distElem.innerHTML = `<div>📍 ${totalJarak.toFixed(2)} KM</div> ${statusHtml}`;
+        
         if (totalJarak >= 2) distElem.classList.add('target-reached');
         else distElem.classList.remove('target-reached');
         
-        document.getElementById('totalLaporan').innerText = `📸 ${totalLaporan} Foto`;
+        document.getElementById('totalLaporan').innerHTML = `<div>📸 ${totalLaporan} Foto</div>`;
         
         if (filtered.length > 0) {
             const combinedBounds = L.featureGroup([polylineGroup, markerGroup]).getBounds();
@@ -207,7 +249,7 @@
     }
 
     fetchData();
-    setInterval(fetchData, 60000); // Auto-refresh tiap 1 menit
+    setInterval(fetchData, 60000); 
 </script>
 </body>
 </html>
