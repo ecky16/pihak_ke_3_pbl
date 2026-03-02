@@ -1,21 +1,19 @@
 const axios = require('axios');
 
-// KONFIGURASI
-const TELEGRAM_TOKEN = 'ISI_TOKEN_BOT_DI_SINI'; // Ganti dengan token dari BotFather
-const CHANNEL_ID = '-1003759185457'; // ID Channel Database Foto
+// KONFIGURASI MENGGUNAKAN ENVIRONMENT VARIABLES (AMAN)
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
+const CHANNEL_ID = '-1003759185457'; 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(200).send('OK');
 
   const { message, edited_message } = req.body;
-  
-  // Ambil pesan (bisa pesan baru atau update Live Location)
   const msg = message || edited_message;
   if (!msg) return res.status(200).send('OK');
 
   const chatId = msg.chat.id;
-  const nama = msg.from.first_name;
+  const nama = msg.from.first_name || "Teknisi";
 
   try {
     // 1. LOGIKA TERIMA LOKASI (Termasuk Live Location)
@@ -31,12 +29,11 @@ module.exports = async (req, res) => {
         keterangan: 'Update Lokasi / Survey'
       });
 
-      // Balas hanya jika ini pesan baru (bukan update live location agar tidak spam)
       if (message && message.location) {
         return res.status(200).json({ 
           method: 'sendMessage', 
           chat_id: chatId, 
-          text: '📍 Lokasi tercatat. Silakan lanjut survey!' 
+          text: `📍 Lokasi ${nama} tercatat. Lanjutkan survey!` 
         });
       }
       return res.status(200).send('OK');
@@ -47,7 +44,6 @@ module.exports = async (req, res) => {
       const photo = msg.photo[msg.photo.length - 1];
       const caption = msg.caption || 'Laporan Lapangan';
 
-      // Forward ke Channel
       const forwardRes = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
         chat_id: CHANNEL_ID,
         photo: photo.file_id,
@@ -58,7 +54,6 @@ module.exports = async (req, res) => {
       const cleanChannelId = CHANNEL_ID.replace('-100', '');
       const photoUrl = `https://t.me/c/${cleanChannelId}/${messageId}`;
 
-      // Kirim ke Google Sheets (Koordinat 0 dulu, nanti teknisi kirim lokasi)
       await axios.post(GAS_URL, {
         chatId: chatId,
         nama: nama,
@@ -71,7 +66,20 @@ module.exports = async (req, res) => {
       return res.status(200).json({ 
         method: 'sendMessage', 
         chat_id: chatId, 
-        text: '✅ Foto terkirim! Sekarang klik "Share Location" agar titik laporan ini masuk ke Map.' 
+        text: '✅ Foto terkirim! Klik "Share Location" (Live Location) agar titik ini muncul di Map.' 
+      });
+    }
+
+    // 3. MENU START
+    if (msg.text === '/start') {
+      return res.status(200).json({
+        method: 'sendMessage',
+        chat_id: chatId,
+        text: `Halo ${nama}, gunakan tombol di bawah untuk lapor:`,
+        reply_markup: {
+          keyboard: [[{ text: "📍 Kirim Lokasi", request_location: true }]],
+          resize_keyboard: true
+        }
       });
     }
 
