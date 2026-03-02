@@ -9,8 +9,25 @@ module.exports = async (req, res) => {
   const msg = message || edited_message;
   if (!msg) return res.status(200).send('OK');
 
-  const chatId = msg.chat.id;
-  const text = msg.text || "";
+  const chatId = msg.chat.id.toString();
+const text = msg.text || "";
+
+try {
+  // 1. CEK APAKAH USER TERDAFTAR (WHITELIST)
+  // Kita panggil GAS untuk cek apakah ID ini ada di db_subscriber
+  const checkUser = await axios.post(GAS_URL, { 
+    chatId: chatId, 
+    action: 'check_user' 
+  });
+
+  if (checkUser.data.status === 'unauthorized') {
+    // Jika tidak terdaftar, hentikan proses dan beri tahu user
+    return res.status(200).json({
+      method: 'sendMessage',
+      chat_id: chatId,
+      text: "⚠️ **Akses Ditolak!**\n\nID Anda (" + chatId + ") tidak terdaftar dalam database tim Survey Pihak ke 3. Silakan hubungi Mas Ecky untuk pendaftaran."
+    });
+  }
 
   try {
     // MENU UTAMA / START
