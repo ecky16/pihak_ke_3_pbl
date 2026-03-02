@@ -60,7 +60,10 @@
             border-radius: 6px; 
             border: 1px solid #ccd0d5; 
             background: white;
+            outline: none;
         }
+
+        .db-select { background: #fffdf0; border: 1px solid #f0ad4e; font-weight: bold; }
 
         button { 
             padding: 10px 20px; 
@@ -70,7 +73,10 @@
             border-radius: 6px; 
             font-weight: bold;
             cursor: pointer; 
+            transition: 0.3s;
         }
+
+        button:hover { background: #0073e6; }
 
         .custom-popup .leaflet-popup-content-wrapper { border-radius: 12px; padding: 5px; }
         .btn-view {
@@ -89,10 +95,16 @@
 <body>
 
 <div id="controls">
+    <select id="selectDatabase" class="db-select" onchange="fetchData()">
+        <option value="DATA">📅 Bulan Ini (Aktif)</option>
+        </select>
+
     <select id="selectTeknisi" onchange="renderMaps()">
         <option value="">-- Semua Teknisi --</option>
     </select>
+    
     <input type="date" id="selectTanggal" onchange="renderMaps()">
+    
     <button onclick="fetchData()">🔄 Refresh</button>
     
     <div class="stats-box" id="jarakTempuh">
@@ -126,11 +138,15 @@
     }
 
     async function fetchData() {
+        const dbName = document.getElementById('selectDatabase').value;
         try {
-            const response = await fetch(GAS_URL);
+            // Memanggil GAS dengan parameter sheetName
+            const response = await fetch(`${GAS_URL}?sheetName=${dbName}`);
             allData = await response.json();
+            
             const select = document.getElementById('selectTeknisi');
             const valSebelumnya = select.value;
+            
             const daftarNama = [...new Set(allData.map(item => item.Nama))].filter(n => n && n !== "Unknown");
             select.innerHTML = '<option value="">-- Semua Teknisi --</option>';
             daftarNama.forEach(nama => {
@@ -138,6 +154,7 @@
                 opt.value = nama; opt.innerHTML = nama;
                 select.appendChild(opt);
             });
+            
             select.value = valSebelumnya;
             renderMaps();
         } catch (e) { console.error("Error:", e); }
@@ -146,6 +163,7 @@
     function renderMaps() {
         const teknisiSel = document.getElementById('selectTeknisi').value;
         const tanggalSel = document.getElementById('selectTanggal').value;
+        const dbSel = document.getElementById('selectDatabase').value;
         const sekarang = new Date();
 
         polylineGroup.clearLayers();
@@ -200,30 +218,27 @@
             }
         });
 
-        // UPDATE UI STATS & LOGIKA PINTAR GPS
         const distElem = document.getElementById('jarakTempuh');
         let statusHtml = "";
         
-        if (teknisiSel && waktuTerakhir) {
+        // Peringatan merah hanya untuk database "DATA" (bulan berjalan)
+        if (teknisiSel && waktuTerakhir && dbSel === "DATA") {
             const selisihMenit = Math.floor((sekarang - waktuTerakhir) / 60000);
-            // Cek apakah status terakhir adalah Selesai atau OFF
             const isSudahOff = ketTerakhir.includes("Selesai") || ketTerakhir.includes("OFF");
 
             if (!isSudahOff && selisihMenit >= 5) {
-                // Berkedip merah hanya jika HARUSNYA aktif tapi tidak kirim data
                 distElem.classList.add('status-offline');
                 statusHtml = `<span class="warning-text">⚠️ GPS MACET ${selisihMenit} MENIT</span>`;
             } else if (isSudahOff) {
-                // Jika statusnya OFF, tampilkan abu-abu tenang
                 distElem.classList.remove('status-offline');
                 statusHtml = `<span class="off-text">💤 SURVEY SELESAI / OFF</span>`;
             } else {
-                // Jika masih dalam rentang waktu aman
                 distElem.classList.remove('status-offline');
                 statusHtml = `<span class="success-text">✅ GPS AKTIF</span>`;
             }
         } else {
             distElem.classList.remove('status-offline');
+            if (dbSel !== "DATA") statusHtml = `<span style="color:blue; font-size:10px;">📚 DATA ARSIP</span>`;
         }
 
         distElem.innerHTML = `<div>📍 ${totalJarak.toFixed(2)} KM</div> ${statusHtml}`;
@@ -238,7 +253,10 @@
     }
 
     fetchData();
-    setInterval(fetchData, 60000); 
+    // Auto-refresh hanya jika melihat data bulan berjalan
+    setInterval(() => {
+        if (document.getElementById('selectDatabase').value === "DATA") fetchData();
+    }, 60000); 
 </script>
 </body>
 </html>
