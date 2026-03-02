@@ -138,15 +138,32 @@
     }
 
     async function fetchData() {
-        const dbName = document.getElementById('selectDatabase').value;
+        const dbSelect = document.getElementById('selectDatabase');
+        const dbName = dbSelect.value;
+        
         try {
-            // Memanggil GAS dengan parameter sheetName
-            const response = await fetch(`${GAS_URL}?sheetName=${dbName}`);
+            // STEP 1: Ambil daftar sheet terbaru (Hanya jalan jika baru buka atau klik refresh)
+            const resSheets = await fetch(`${GAS_URL}?action=getSheets`);
+            const listSheets = await resSheets.json();
+            
+            // Update Dropdown Database secara otomatis
+            const currentDb = dbSelect.value;
+            dbSelect.innerHTML = "";
+            listSheets.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.innerHTML = name === "DATA" ? "📅 Bulan Ini (Aktif)" : `📁 ${name.replace('DATA_', '').replace('_', ' ')}`;
+                dbSelect.appendChild(opt);
+            });
+            dbSelect.value = currentDb || "DATA";
+
+            // STEP 2: Ambil Data Koordinat
+            const response = await fetch(`${GAS_URL}?sheetName=${dbSelect.value}`);
             allData = await response.json();
             
+            // ... sisa kode render dropdown teknisi tetap sama ...
             const select = document.getElementById('selectTeknisi');
             const valSebelumnya = select.value;
-            
             const daftarNama = [...new Set(allData.map(item => item.Nama))].filter(n => n && n !== "Unknown");
             select.innerHTML = '<option value="">-- Semua Teknisi --</option>';
             daftarNama.forEach(nama => {
@@ -154,7 +171,6 @@
                 opt.value = nama; opt.innerHTML = nama;
                 select.appendChild(opt);
             });
-            
             select.value = valSebelumnya;
             renderMaps();
         } catch (e) { console.error("Error:", e); }
