@@ -56,11 +56,19 @@ module.exports = async (req, res) => {
     }
 
     // SELESAI
+ // 5. LOGIKA SELESAI SURVEY (GANTI BAGIAN INI)
     if (text === '🏁 SELESAI') {
       return res.status(200).json({
-        method: 'sendMessage', chat_id: chatId,
-        text: 'Tugas Selesai! ✅\n\nJangan lupa matikan **Live Location** Anda.',
-        reply_markup: { remove_keyboard: true }
+        method: 'sendMessage',
+        chat_id: chatId,
+        text: 'Tugas Selesai! ✅\n\n**PENTING:** Klik "Stop Sharing" pada bar lokasi di atas.\n\nKlik tombol di bawah jika ingin mulai survey baru.',
+        reply_markup: {
+          keyboard: [
+            [{ text: "🚀 MULAI SURVEY", request_location: true }]
+          ],
+          resize_keyboard: true
+        },
+        parse_mode: 'Markdown'
       });
     }
 
