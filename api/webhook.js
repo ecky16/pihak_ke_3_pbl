@@ -40,13 +40,34 @@ module.exports = async (req, res) => {
     }
 
     // TERIMA FOTO
+  // 3. LOGIKA TERIMA FOTO + VALIDASI GPS
     if (msg.photo) {
+      // Cek apakah lokasi ada (Telegram biasanya kirim lokasi bersamaan dengan foto jika GPS aktif)
+      // Atau kita cek apakah mereka sudah kirim lokasi sebelumnya
+      if (!msg.location && (!msg.reply_to_message || !msg.reply_to_message.location)) {
+        return res.status(200).json({
+          method: 'sendMessage',
+          chat_id: chatId,
+          text: '⚠️ **Laporan Ditolak!**\n\nGPS Anda tidak terdeteksi. Silakan klik tombol **🚀 MULAI SURVEY** (Live Location 8 Jam) terlebih dahulu sebelum mengirim foto agar posisi temuan tercatat di Map.',
+          parse_mode: 'Markdown'
+        });
+      }
+
       const photoId = msg.photo[msg.photo.length - 1].file_id;
-      const forward = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, { chat_id: CHANNEL_ID, photo: photoId, caption: `Laporan ID: ${chatId}` });
+      const forward = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, { 
+        chat_id: CHANNEL_ID, 
+        photo: photoId, 
+        caption: `Laporan Lapangan dari ID: ${chatId}` 
+      });
+
       const photoUrl = `https://t.me/c/${CHANNEL_ID.replace('-100','')}/${forward.data.result.message_id}`;
       
       await axios.post(GAS_URL, { chatId, foto: photoUrl, action: 'temp_photo' });
-      return res.status(200).json({ method: 'sendMessage', chat_id: chatId, text: '📸 **Foto diterima!**\n\nSilakan ketikkan **Keterangan Temuan** :' });
+      return res.status(200).json({ 
+        method: 'sendMessage', 
+        chat_id: chatId, 
+        text: '📸 **Foto diterima!**\n\nSilakan masukkan **keterangan temuan :**' 
+      });
     }
 
     // TERIMA TEKS (KETERANGAN)
