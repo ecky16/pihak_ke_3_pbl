@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitoring Survey Teknisi - Mas Ecky</title>
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
     <style>
         body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
         #controls { padding: 15px; background: #f8f9fa; border-bottom: 1px solid #ddd; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -14,17 +12,16 @@
         .stats-box { background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-weight: bold; }
         select, input { padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
         button { padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #0056b3; }
     </style>
 </head>
 <body>
 
 <div id="controls">
-    <select id="selectTeknisi">
-        <option value="">-- Pilih Teknisi --</option>
+    <select id="selectTeknisi" onchange="renderMaps()">
+        <option value="">-- Semua Teknisi --</option>
     </select>
-    <input type="date" id="selectTanggal">
-    <button onclick="filterData()">Cek History</button>
+    <input type="date" id="selectTanggal" onchange="renderMaps()">
+    <button onclick="fetchData()">Refresh Data</button>
     
     <div class="stats-box" id="jarakTempuh">Total Jarak: 0 KM</div>
     <div class="stats-box" id="totalLaporan">Laporan: 0 Foto</div>
@@ -35,115 +32,105 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // GANTI DENGAN URL APPS SCRIPT MAS ECKY
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
-    let map = L.map('map').setView([-7.2575, 112.7521], 13); // Default Surabaya, sesuaikan lokasi Mas Ecky
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
+    let map = L.map('map').setView([-7.2575, 112.7521], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
     let allData = [];
-    let polyline;
-    let markers = [];
+    let polylineGroup = L.featureGroup().addTo(map);
+    let markerGroup = L.featureGroup().addTo(map);
 
-    // Fungsi Hitung Jarak (Haversine Formula)
     function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371; // Radius bumi dalam KM
+        const R = 6371;
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
     async function fetchData() {
         try {
             const response = await fetch(GAS_URL);
             allData = await response.json();
-            
-            // Isi dropdown teknisi secara unik
             const daftarNama = [...new Set(allData.map(item => item.Nama))];
             const select = document.getElementById('selectTeknisi');
+            const val Sekarang = select.value;
+            select.innerHTML = '<option value="">-- Semua Teknisi --</option>';
             daftarNama.forEach(nama => {
                 const opt = document.createElement('option');
-                opt.value = nama;
-                opt.innerHTML = nama;
+                opt.value = nama; opt.innerHTML = nama;
                 select.appendChild(opt);
             });
-        } catch (error) {
-            console.error("Gagal ambil data:", error);
-            alert("Gagal mengambil data dari Google Sheets!");
-        }
+            select.value = valSekarang;
+            renderMaps();
+        } catch (e) { console.error(e); }
     }
 
-    function filterData() {
-        const teknisi = document.getElementById('selectTeknisi').value;
-        const tanggal = document.getElementById('selectTanggal').value; // Format yyyy-mm-dd
+    function renderMaps() {
+        const teknisiSel = document.getElementById('selectTeknisi').value;
+        const tanggalSel = document.getElementById('selectTanggal').value;
 
-        if (!teknisi || !tanggal) return alert("Pilih Teknisi dan Tanggal dulu!");
+        polylineGroup.clearLayers();
+        markerGroup.clearLayers();
 
-        // Bersihkan peta
-        if (polyline) map.removeLayer(polyline);
-        markers.forEach(m => map.removeLayer(m));
-        markers = [];
+        let filtered = allData;
+        if (teknisiSel) filtered = filtered.filter(d => d.Nama === teknisiSel);
+        if (tanggalSel) {
+            filtered = filtered.filter(d => new Date(d.Timestamp).toISOString().split('T')[0] === tanggalSel);
+        }
 
-        // Filter data berdasarkan Nama dan Tanggal (Timestamp di Google Sheets biasanya string)
-        const filtered = allData.filter(d => {
-            const tglSheet = new Date(d.Timestamp).toISOString().split('T')[0];
-            return d.Nama === teknisi && tglSheet === tanggal;
-        });
-
-        if (filtered.length === 0) return alert("Tidak ada data untuk teknisi/tanggal ini.");
-
-        let coords = [];
+        let totalLaporan = 0;
         let totalJarak = 0;
-        let laporanFoto = 0;
+        const perUser = {};
 
         filtered.forEach((d, i) => {
-            if (d.Latitude && d.Longitude && d.Latitude !== 0) {
-                const latlng = [d.Latitude, d.Longitude];
-                coords.push(latlng);
-
-                // Hitung jarak kumulatif
-                if (coords.length > 1) {
-                    const prev = coords[coords.length - 2];
-                    totalJarak += calculateDistance(prev[0], prev[1], latlng[0], latlng[1]);
+            // 1. LOGIKA HITUNG FOTO (Berdasarkan link telegram)
+            if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
+                totalLaporan++;
+                
+                // Jika koordinat foto 0, cari posisi tracking terakhir teknisi ini
+                let lat = d.Latitude, lon = d.Longitude;
+                if (!lat || lat == 0) {
+                    const lastPos = filtered.slice(0, i).reverse().find(r => r.Nama === d.Nama && r.Latitude != 0);
+                    if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
                 }
 
-                // Jika ada foto, buat marker
-                if (d.Photo_URL && d.Photo_URL !== '-' && d.Photo_URL !== 'Hanya Update Lokasi') {
-                    laporanFoto++;
-                    const m = L.marker(latlng).addTo(map)
-                        .bindPopup(`<b>Lap: ${d.Keterangan}</b><br><small>${d.Timestamp}</small><br><a href="${d.Photo_URL}" target="_blank">Lihat Foto</a>`);
-                    markers.push(m);
+                if (lat && lat != 0) {
+                    L.marker([lat, lon]).addTo(markerGroup)
+                     .bindPopup(`<b>Lap: ${d.Keterangan}</b><br><small>${d.Nama}</small><br><a href="${d.Photo_URL}" target="_blank">Lihat Foto</a>`);
+                }
+            }
+
+            // 2. LOGIKA KOORDINAT JALUR
+            if (d.Latitude && d.Longitude && d.Latitude != 0) {
+                if (!perUser[d.Nama]) perUser[d.Nama] = [];
+                perUser[d.Nama].push([d.Latitude, d.Longitude]);
+            }
+        });
+
+        // 3. GAMBAR GARIS & HITUNG JARAK
+        Object.keys(perUser).forEach(nama => {
+            const coords = perUser[nama];
+            if (coords.length > 1) {
+                L.polyline(coords, {color: teknisiSel ? 'blue' : 'gray', weight: 3}).addTo(polylineGroup);
+                for (let j = 1; j < coords.length; j++) {
+                    totalJarak += calculateDistance(coords[j-1][0], coords[j-1][1], coords[j][0], coords[j][1]);
                 }
             }
         });
 
-        // Gambar Garis History
-        polyline = L.polyline(coords, {color: 'blue', weight: 4, opacity: 0.8}).addTo(map);
-        map.fitBounds(polyline.getBounds());
-
-        // Update Statistik
+        document.getElementById('totalLaporan').innerText = `Laporan: ${totalLaporan} Foto`;
         document.getElementById('jarakTempuh').innerText = `Total Jarak: ${totalJarak.toFixed(2)} KM`;
-        document.getElementById('totalLaporan').innerText = `Laporan: ${laporanFoto} Foto`;
         
-        // Cek Target 2-4 KM
-        const statsBox = document.getElementById('jarakTempuh');
-        if (totalJarak >= 2) {
-            statsBox.style.color = "green";
-            statsBox.innerText += " ✅ (Target Tercapai)";
-        } else {
-            statsBox.style.color = "red";
+        if (filtered.length > 0) {
+            const group = L.featureGroup([polylineGroup, markerGroup]);
+            if (group.getBounds().isValid()) map.fitBounds(group.getBounds());
         }
     }
 
-    // Jalankan saat load
     fetchData();
+    setInterval(fetchData, 30000); // Auto update tiap 30 detik
 </script>
-
 </body>
 </html>
-
