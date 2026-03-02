@@ -57,15 +57,16 @@ module.exports = async (req, res) => {
 
     // SELESAI
  // 5. LOGIKA SELESAI SURVEY (GANTI BAGIAN INI)
+    // LOGIKA SELESAI SURVEY
     if (text === '🏁 SELESAI') {
+      await axios.post(GAS_URL, { chatId: chatId, action: 'stop_survey' });
+      
       return res.status(200).json({
         method: 'sendMessage',
         chat_id: chatId,
-        text: 'Tugas Selesai! ✅\n\n**PENTING:** Klik "Stop Sharing" pada bar lokasi di atas.\n\nKlik tombol di bawah jika ingin mulai survey baru.',
+        text: 'Tugas Selesai! ✅\n\nSistem sudah berhenti mencatat lokasi Anda.\n\n*Catatan:* Jika bar "Stop Sharing" tidak muncul, silakan matikan GPS HP sebentar agar baterai awet.',
         reply_markup: {
-          keyboard: [
-            [{ text: "🚀 MULAI SURVEY", request_location: true }]
-          ],
+          keyboard: [[{ text: "🚀 MULAI SURVEY", request_location: true }]],
           resize_keyboard: true
         },
         parse_mode: 'Markdown'
