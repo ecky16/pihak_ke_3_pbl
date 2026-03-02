@@ -3,31 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoring Survey Teknisi Pihak ke 3</title>
+    <title>Monitoring Survey Teknisi - Mas Ecky</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
         html, body { height: 100%; margin: 0; padding: 0; }
-        body { font-family: sans-serif; display: flex; flex-direction: column; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; background: #f0f2f5; }
+        
         #controls { 
-            padding: 15px; 
-            background: #f8f9fa; 
+            padding: 15px 20px; 
+            background: #ffffff; 
             border-bottom: 1px solid #ddd; 
-            display: flex; gap: 10px; 
+            display: flex; gap: 15px; 
             align-items: center; 
             flex-wrap: wrap; 
             z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        /* Pastikan ID MAP punya tinggi yang tetap */
-        #map { 
-            flex-grow: 1; 
-            height: 100%; 
-            width: 100%; 
+
+        #map { flex-grow: 1; width: 100%; }
+
+        .stats-box { 
+            background: #fff; 
+            padding: 8px 15px; 
+            border-radius: 8px; 
+            border: 1px solid #eee;
+            font-weight: 600; 
+            font-size: 14px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        .stats-box { background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-weight: bold; }
-        select, input { padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
-        button { padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+
+        .target-reached { color: #28a745 !important; border-color: #28a745; background: #f4fff7; }
+        
+        select, input { 
+            padding: 10px; 
+            border-radius: 6px; 
+            border: 1px solid #ccd0d5; 
+            background: white;
+            outline: none;
+        }
+
+        button { 
+            padding: 10px 20px; 
+            background: #0084ff; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            font-weight: bold;
+            cursor: pointer; 
+            transition: 0.3s;
+        }
+
+        button:hover { background: #0073e6; }
+
+        /* Custom Popup Style */
+        .custom-popup .leaflet-popup-content-wrapper { border-radius: 12px; padding: 5px; }
+        .btn-view {
+            display: block;
+            text-align: center;
+            background: #0088cc;
+            color: white !important;
+            padding: 8px;
+            border-radius: 6px;
+            text-decoration: none;
+            margin-top: 10px;
+            font-size: 12px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -37,10 +83,10 @@
         <option value="">-- Semua Teknisi --</option>
     </select>
     <input type="date" id="selectTanggal" onchange="renderMaps()">
-    <button onclick="fetchData()">Refresh Data</button>
+    <button onclick="fetchData()">🔄 Refresh</button>
     
-    <div class="stats-box" id="jarakTempuh">Total Jarak: 0 KM</div>
-    <div class="stats-box" id="totalLaporan">Laporan: 0 Foto</div>
+    <div class="stats-box" id="jarakTempuh">📍 0 KM</div>
+    <div class="stats-box" id="totalLaporan">📸 0 Foto</div>
 </div>
 
 <div id="map"></div>
@@ -48,15 +94,13 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // URL Apps Script Mas Ecky
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
-    // Inisialisasi Map
-    let map = L.map('map').setView([-7.2575, 112.7521], 13);
+    let map = L.map('map').setView([-7.2575, 112.7521], 12);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '© OpenStreetMap contributors'
+        attribution: '© Pihak ke 3 Bot'
     }).addTo(map);
 
     let allData = [];
@@ -79,7 +123,7 @@
             const select = document.getElementById('selectTeknisi');
             const valSebelumnya = select.value;
             
-            const daftarNama = [...new Set(allData.map(item => item.Nama))];
+            const daftarNama = [...new Set(allData.map(item => item.Nama))].filter(n => n && n !== "Unknown");
             select.innerHTML = '<option value="">-- Semua Teknisi --</option>';
             daftarNama.forEach(nama => {
                 const opt = document.createElement('option');
@@ -89,7 +133,7 @@
             
             select.value = valSebelumnya;
             renderMaps();
-        } catch (e) { console.error("Data Fetch Error:", e); }
+        } catch (e) { console.error("Error:", e); }
     }
 
     function renderMaps() {
@@ -119,12 +163,18 @@
                     if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
                 }
                 if (lat && lat != 0) {
-                    L.marker([lat, lon]).addTo(markerGroup)
-                     .bindPopup(`<b>Lap: ${d.Keterangan}</b><br><small>${d.Nama}</small><br><a href="${d.Photo_URL}" target="_blank">Lihat Foto</a>`);
+                    const popupMsg = `
+                        <div style="text-align:center">
+                            <b>Temuan ${d.Nama}</b><br>
+                            <small>${new Date(d.Timestamp).toLocaleTimeString()}</small><br>
+                            <p style="margin:5px 0">${d.Keterangan}</p>
+                            <a href="${d.Photo_URL}" target="_blank" class="btn-view">📂 Buka di Telegram</a>
+                        </div>`;
+                    L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg, {className: 'custom-popup'});
                 }
             }
 
-            // Jalur
+            // Jalur Tracking
             if (d.Latitude && d.Longitude && d.Latitude != 0) {
                 if (!perUser[d.Nama]) perUser[d.Nama] = [];
                 perUser[d.Nama].push([d.Latitude, d.Longitude]);
@@ -134,24 +184,30 @@
         Object.keys(perUser).forEach(nama => {
             const coords = perUser[nama];
             if (coords.length > 1) {
-                L.polyline(coords, {color: teknisiSel ? 'blue' : 'gray', weight: 3}).addTo(polylineGroup);
+                const color = teknisiSel ? '#0084ff' : '#999';
+                L.polyline(coords, {color: color, weight: 4, opacity: 0.7}).addTo(polylineGroup);
                 for (let j = 1; j < coords.length; j++) {
                     totalJarak += calculateDistance(coords[j-1][0], coords[j-1][1], coords[j][0], coords[j][1]);
                 }
             }
         });
 
-        document.getElementById('totalLaporan').innerText = `Laporan: ${totalLaporan} Foto`;
-        document.getElementById('jarakTempuh').innerText = `Total Jarak: ${totalJarak.toFixed(2)} KM`;
+        // Update Stats UI
+        const distElem = document.getElementById('jarakTempuh');
+        distElem.innerText = `📍 ${totalJarak.toFixed(2)} KM`;
+        if (totalJarak >= 2) distElem.classList.add('target-reached');
+        else distElem.classList.remove('target-reached');
+        
+        document.getElementById('totalLaporan').innerText = `📸 ${totalLaporan} Foto`;
         
         if (filtered.length > 0) {
-            const bounds = L.featureGroup([polylineGroup, markerGroup]).getBounds();
-            if (bounds.isValid()) map.fitBounds(bounds);
+            const combinedBounds = L.featureGroup([polylineGroup, markerGroup]).getBounds();
+            if (combinedBounds.isValid()) map.fitBounds(combinedBounds, {padding: [50, 50]});
         }
     }
 
     fetchData();
-    setInterval(fetchData, 30000); 
+    setInterval(fetchData, 60000); // Auto-refresh tiap 1 menit
 </script>
 </body>
 </html>
