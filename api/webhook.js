@@ -35,13 +35,23 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 3. INSTRUKSI KIRIM FOTO
-        if (text === '📸 KIRIM LAPORAN FOTO') {
-            return res.status(200).json({
-                method: 'sendMessage', chat_id: chatId,
-                text: 'Silakan klik ikon 📎 **Lampiran** lalu pilih 📸 **Kamera** untuk memotret temuan Anda.'
-            });
-        }
+     // 3. INSTRUKSI KIRIM FOTO (VERSI TOMBOL KAMERA)
+if (text === '📸 KIRIM LAPORAN FOTO') {
+    return res.status(200).json({
+        method: 'sendMessage',
+        chat_id: chatId,
+        text: '📸 **Siap Lapor Foto!**\n\nKlik tombol di bawah untuk langsung membuka kamera:',
+        reply_markup: {
+            inline_keyboard: [[
+                { 
+                    text: "🚀 BUKA KAMERA SEKARANG", 
+                    url: "https://t.me/share/url?url=Lampiran_Foto&text=Klik_Ikon_Kamera" 
+                }
+            ]]
+        },
+        parse_mode: 'Markdown'
+    });
+}
 
         // 4. TERIMA LOKASI (Awal & Tracking)
         if (msg.location) {
