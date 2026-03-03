@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
     const text = msg.text || "";
 
     try {
-        // 1. CEK WHITELIST (Wajib ditunggu agar keamanan terjaga)
+        // 1. CEK WHITELIST
         const checkUser = await axios.post(GAS_URL, { chatId: chatId, action: 'check_user' });
         if (checkUser.data.status === 'unauthorized') {
             return res.status(200).json({
@@ -35,7 +35,7 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 3. INSTRUKSI KIRIM FOTO (Fast Response)
+        // 3. INSTRUKSI KIRIM FOTO
         if (text === '📸 KIRIM LAPORAN FOTO') {
             return res.status(200).json({
                 method: 'sendMessage', chat_id: chatId,
@@ -45,7 +45,6 @@ module.exports = async (req, res) => {
 
         // 4. TERIMA LOKASI
         if (msg.location) {
-            // Jalankan simpan ke GAS di background
             axios.post(GAS_URL, { chatId, lat: msg.location.latitude, lon: msg.location.longitude, action: message ? 'start_survey' : 'tracking' }).catch(e => console.error(e.message));
             
             if (message) {
@@ -59,11 +58,9 @@ module.exports = async (req, res) => {
             return res.status(200).send('OK');
         }
 
-        // 5. TERIMA FOTO (VERSI FAST RESPONSE)
+        // 5. TERIMA FOTO
         if (msg.photo) {
             const photoId = msg.photo[msg.photo.length - 1].file_id;
-
-            // Jalankan proses berat di background tanpa 'await'
             const processPhoto = async () => {
                 try {
                     const forward = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, { 
@@ -75,10 +72,7 @@ module.exports = async (req, res) => {
                     await axios.post(GAS_URL, { chatId, foto: photoUrl, action: 'temp_photo' });
                 } catch (e) { console.error("Error background process:", e.message); }
             };
-            
-            processPhoto(); // Jalankan fungsi di atas
-
-            // Langsung balas ke user tanpa nunggu proses selesai
+            processPhoto();
             return res.status(200).json({ 
                 method: 'sendMessage', 
                 chat_id: chatId, 
@@ -87,32 +81,34 @@ module.exports = async (req, res) => {
         }
 
         // 6. UPDATE KETERANGAN (INTERAKTIF & KEREN)
-if (text && !text.includes('/') && text !== '🏁 SELESAI' && text !== '📸 KIRIM LAPORAN FOTO') {
-    try {
-        // 1. Kirim pesan awal (Jam Pasir) dan ambil ID Pesannya
-        const responseMsg = await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            chat_id: chatId,
-            text: '⏳ Sedang menyimpan keterangan...'
-        });
-        
-        const messageId = responseMsg.data.result.message_id;
+        if (text && !text.includes('/') && text !== '🏁 SELESAI' && text !== '📸 KIRIM LAPORAN FOTO') {
+            // A. Kirim status loading
+            const responseMsg = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+                chat_id: chatId,
+                text: '⏳ Sedang menyimpan keterangan...'
+            });
+            const messageId = responseMsg.data.result.message_id;
 
-        // 2. Kirim data ke Google Sheets (GAS)
-        await axios.post(GAS_URL, { chatId, keterangan: text, action: 'update_keterangan' });
+            try {
+                // B. Kirim ke GAS (Wajib ditunggu agar pasti tersimpan)
+                await axios.post(GAS_URL, { chatId, keterangan: text, action: 'update_keterangan' });
 
-        // 3. EDIT PESAN TADI kalau sudah berhasil
-        await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
-            chat_id: chatId,
-            message_id: messageId,
-            text: `✅ Keterangan: "${text}"\nBerhasil tersimpan di database! 🚀`
-        });
-
-        return res.status(200).send('OK');
-    } catch (e) {
-        console.error(e.message);
-        return res.status(200).send('Error');
-    }
-}}
+                // C. Edit pesan loading jadi Berhasil
+                await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    text: `✅ Keterangan: "${text}"\nBerhasil tersimpan di database! 🚀`
+                });
+            } catch (err) {
+                // D. Edit jadi Gagal jika ada error
+                await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    text: `❌ Gagal menyimpan! Silakan coba kirim ulang keterangan.`
+                });
+            }
+            return res.status(200).send('OK');
+        }
 
         // 7. SELESAI
         if (text === '🏁 SELESAI') {
@@ -124,6 +120,6 @@ if (text && !text.includes('/') && text !== '🏁 SELESAI' && text !== '📸 KIR
             });
         }
 
-    } catch (e) { console.error("Error:", e.message); }
+    } catch (e) { console.error("General Error:", e.message); }
     res.status(200).send('OK');
 };
