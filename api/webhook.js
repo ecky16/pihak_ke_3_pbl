@@ -97,7 +97,7 @@ module.exports = async (req, res) => {
                 await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
                     chat_id: chatId,
                     message_id: messageId,
-                    text: `✅ Keterangan: "${text}"\nBerhasil tersimpan di database! 🚀`
+                    text: `✅ Keterangan: "${text}"\nBerhasil tersimpan di database! 🚀, SILAHKAN LANJUT SURVEY..`
                 });
             } catch (err) {
                 // D. Edit jadi Gagal jika ada error
