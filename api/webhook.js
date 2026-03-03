@@ -43,14 +43,19 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 4. TERIMA LOKASI
+        // 4. TERIMA LOKASI (Awal & Tracking)
         if (msg.location) {
-            axios.post(GAS_URL, { chatId, lat: msg.location.latitude, lon: msg.location.longitude, action: message ? 'start_survey' : 'tracking' }).catch(e => console.error(e.message));
+            axios.post(GAS_URL, { 
+                chatId, 
+                lat: msg.location.latitude, 
+                lon: msg.location.longitude, 
+                action: message ? 'start_survey' : 'tracking' 
+            }).catch(e => console.error(e.message));
             
             if (message) {
                 return res.status(200).json({
                     method: 'sendMessage', chat_id: chatId,
-                    text: `✅ **Survey Aktif!**\n\n**PENTING:** Klik ikon 📎 (Paperclip) > Location > **Share My Live Location for 8 Hours**.`,
+                    text: `✅ **Survey Aktif!**\n\n**PENTING:** Klik ikon 📎 (Paperclip) > Location > **Share My Live Location for 8 Hours**.\n\n*Foto baru bisa dikirim SETELAH Live Location aktif.*`,
                     reply_markup: { keyboard: [[{ text: "📸 KIRIM LAPORAN FOTO" }], [{ text: "🏁 SELESAI" }]], resize_keyboard: true },
                     parse_mode: 'Markdown'
                 });
@@ -58,8 +63,20 @@ module.exports = async (req, res) => {
             return res.status(200).send('OK');
         }
 
-        // 5. TERIMA FOTO
+        // 5. TERIMA FOTO (DENGAN SATPAM LIVE LOCATION)
         if (msg.photo) {
+            // Cek status detail ke GAS
+            const statusRes = await axios.post(GAS_URL, { chatId, action: 'check_status_detail' });
+            const statusSekarang = statusRes.data.status;
+
+            if (statusSekarang === 'WAIT_LIVE') {
+                return res.status(200).json({ 
+                    method: 'sendMessage', 
+                    chat_id: chatId, 
+                    text: '🚫 **Foto Ditolak!**\n\nAnda belum mengaktifkan **Live Location**. Silakan aktifkan dulu:\n\n📎 Paperclip > Location > **Share My Live Location for 8 Hours**.\n\n*Tunggu 10 detik setelah aktif, baru kirim foto lagi.*' 
+                });
+            }
+
             const photoId = msg.photo[msg.photo.length - 1].file_id;
             const processPhoto = async () => {
                 try {
@@ -73,6 +90,7 @@ module.exports = async (req, res) => {
                 } catch (e) { console.error("Error background process:", e.message); }
             };
             processPhoto();
+
             return res.status(200).json({ 
                 method: 'sendMessage', 
                 chat_id: chatId, 
@@ -80,9 +98,8 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 6. UPDATE KETERANGAN (INTERAKTIF & KEREN)
+        // 6. UPDATE KETERANGAN (INTERAKTIF)
         if (text && !text.includes('/') && text !== '🏁 SELESAI' && text !== '📸 KIRIM LAPORAN FOTO') {
-            // A. Kirim status loading
             const responseMsg = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
                 chat_id: chatId,
                 text: '⏳ Sedang menyimpan keterangan...'
@@ -90,17 +107,14 @@ module.exports = async (req, res) => {
             const messageId = responseMsg.data.result.message_id;
 
             try {
-                // B. Kirim ke GAS (Wajib ditunggu agar pasti tersimpan)
                 await axios.post(GAS_URL, { chatId, keterangan: text, action: 'update_keterangan' });
 
-                // C. Edit pesan loading jadi Berhasil
                 await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
                     chat_id: chatId,
                     message_id: messageId,
                     text: `✅ Keterangan: "${text}"\nBerhasil tersimpan di database! 🚀, SILAHKAN LANJUT SURVEY..`
                 });
             } catch (err) {
-                // D. Edit jadi Gagal jika ada error
                 await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
                     chat_id: chatId,
                     message_id: messageId,
