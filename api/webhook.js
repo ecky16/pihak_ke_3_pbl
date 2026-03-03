@@ -35,20 +35,12 @@ module.exports = async (req, res) => {
             });
         }
 
-     // 3. INSTRUKSI KIRIM FOTO (VERSI TOMBOL KAMERA)
+  // 3. INSTRUKSI KIRIM FOTO (VERSI INSTRUKSI VISUAL)
 if (text === '📸 KIRIM LAPORAN FOTO') {
     return res.status(200).json({
         method: 'sendMessage',
         chat_id: chatId,
-        text: '📸 **Siap Lapor Foto!**\n\nKlik tombol di bawah untuk langsung membuka kamera:',
-        reply_markup: {
-            inline_keyboard: [[
-                { 
-                    text: "🚀 BUKA KAMERA SEKARANG", 
-                    url: "https://t.me/share/url?url=Lampiran_Foto&text=Klik_Ikon_Kamera" 
-                }
-            ]]
-        },
+        text: '📸 **INSTRUKSI FOTO TEMUAN:**\n\n1. Klik ikon 📎 (**Klip Kertas**) di pojok kanan bawah.\n2. Pilih ikon 📸 (**Kamera**) untuk jepret langsung.\n3. **PENTING:** Jangan kirim foto dari Galeri!\n\n*Silakan kirim fotonya sekarang...*',
         parse_mode: 'Markdown'
     });
 }
