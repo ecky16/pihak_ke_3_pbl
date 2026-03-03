@@ -10,7 +10,26 @@
     <style>
         html, body { height: 100%; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; background: #f0f2f5; }
-        
+        #controls { 
+    display: flex; 
+    gap: 15px; 
+    align-items: center; 
+    flex-wrap: wrap; 
+}
+
+.brand-container {
+    margin-left: auto; /* Memaksa logo ke pojok kanan */
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 10px;
+}
+
+.logo-ta {
+    height: 40px; 
+    width: auto;
+    object-fit: contain;
+}
         #controls { 
             padding: 15px 20px; 
             background: #ffffff; 
@@ -104,8 +123,15 @@
     <div class="stats-box" id="jarakTempuh">
         <div>📍 0 KM</div>
     </div>
+    
     <div class="stats-box" id="totalLaporan">
         <div>📸 0 Foto</div>
+    </div>
+
+    <div class="brand-container">
+        <img src="https://raw.githubusercontent.com/username_github_mas_ecky/repo_mas_ecky/main/logo-ta.png" 
+             alt="Logo Telkom Akses" 
+             class="logo-ta">
     </div>
 </div>
 
