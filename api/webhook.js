@@ -86,11 +86,33 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 6. UPDATE KETERANGAN (Fast Response)
-        if (text && !text.includes('/') && text !== '🏁 SELESAI' && text !== '📸 KIRIM LAPORAN FOTO') {
-            axios.post(GAS_URL, { chatId, keterangan: text, action: 'update_keterangan' }).catch(e => console.error(e.message));
-            return res.status(200).json({ method: 'sendMessage', chat_id: chatId, text: '✅ Sedang menyimpan keterangan...' });
-        }
+        // 6. UPDATE KETERANGAN (INTERAKTIF & KEREN)
+if (text && !text.includes('/') && text !== '🏁 SELESAI' && text !== '📸 KIRIM LAPORAN FOTO') {
+    try {
+        // 1. Kirim pesan awal (Jam Pasir) dan ambil ID Pesannya
+        const responseMsg = await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            chat_id: chatId,
+            text: '⏳ Sedang menyimpan keterangan...'
+        });
+        
+        const messageId = responseMsg.data.result.message_id;
+
+        // 2. Kirim data ke Google Sheets (GAS)
+        await axios.post(GAS_URL, { chatId, keterangan: text, action: 'update_keterangan' });
+
+        // 3. EDIT PESAN TADI kalau sudah berhasil
+        await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+            chat_id: chatId,
+            message_id: messageId,
+            text: `✅ Keterangan: "${text}"\nBerhasil tersimpan di database! 🚀`
+        });
+
+        return res.status(200).send('OK');
+    } catch (e) {
+        console.error(e.message);
+        return res.status(200).send('Error');
+    }
+}}
 
         // 7. SELESAI
         if (text === '🏁 SELESAI') {
