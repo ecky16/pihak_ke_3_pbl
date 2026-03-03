@@ -76,7 +76,7 @@ module.exports = async (req, res) => {
             return res.status(200).json({ 
                 method: 'sendMessage', 
                 chat_id: chatId, 
-                text: '📸 **Foto diterima!**\n\nSilakan langsung masukkan **keterangan temuan** :' 
+                text: '📸 **Foto diterima!**\n\nSilakan langsung masukkan **keterangan temuan** (jangan lanjut jalan dulu sebelum selesai foto tersimpan!!):' 
             });
         }
 
