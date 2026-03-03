@@ -129,7 +129,7 @@ module.exports = async (req, res) => {
             axios.post(GAS_URL, { chatId, action: 'stop_survey' }).catch(e => console.error(e.message));
             return res.status(200).json({
                 method: 'sendMessage', chat_id: chatId,
-                text: 'Tugas Selesai! ✅\n\nSistem berhenti mencatat lokasi.',
+                text: 'Tugas Selesai! ✅\n\nSistem berhenti mencatat lokasi. silahkan nonaktifkan live location kamu supaya hemat baterai',
                 reply_markup: { keyboard: [[{ text: "🚀 MULAI SURVEY", request_location: true }]], resize_keyboard: true }
             });
         }
