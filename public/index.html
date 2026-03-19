@@ -165,13 +165,19 @@
     function renderGamasPoints() {
         const tglMulai = document.getElementById('tglMulai').value;
         const tglSelesai = document.getElementById('tglSelesai').value;
+        
         gamasGroup.clearLayers();
-        let countGamas = 0;
+        let countGamas = 0; // Reset hitungan
 
         allGamasData.forEach(g => {
+            // 1. CEK TANGGAL DULU (Hitungan statistik berpatokan pada baris Excel)
             if (isDateInRange(g.Tanggal, tglMulai, tglSelesai)) {
+                countGamas++; // SETIAP BARIS YANG MASUK TANGGAL LANGSUNG DIHITUNG
+
+                // 2. LOGIKA GAMBAR MARKER (Baru diproses setelah dihitung)
                 let raw = String(g.Lat || g.Latitude || "") + String(g.Lon || g.Longitude || "");
                 let numbersOnly = raw.replace(/[^0-9-]/g, ""); 
+                
                 let latRaw, lonRaw;
                 if (numbersOnly.includes("113")) {
                     [latRaw, lonRaw] = numbersOnly.split("113");
@@ -191,15 +197,12 @@
                 let lat = formatCoord(latRaw, true);
                 let lon = formatCoord(lonRaw, false);
 
+                // Jika koordinat valid, pasang marker di peta
                 if (!isNaN(lat) && !isNaN(lon) && lat !== 0) {
-                    countGamas++;
-                    
-                    // CEK APAKAH ADA LINK FOTO/EVIDENCE
-                    // Mas sesuaikan nama kolomnya di sini (misal: g.Link_Evidence atau g.Photo)
                     const linkEvidence = g.Link_Evidence || g.Link || g.Photo || "#";
                     const tombolEvidence = linkEvidence !== "#" 
-                        ? `<a href="${linkEvidence}" target="_blank" class="btn-view" style="background:#d32f2f; margin-top:10px;">📸 Cek Foto Gamas</a>`
-                        : `<p style="color:gray; font-size:10px;">(Tidak ada foto)</p>`;
+                        ? `<a href="${linkEvidence}" target="_blank" class="btn-view" style="background:#d32f2f; color:white; padding:8px; border-radius:5px; text-decoration:none; display:block; margin-top:10px; text-align:center;">📸 Cek Foto Gamas</a>`
+                        : `<p style="color:gray; font-size:10px; margin-top:10px;">(Foto tidak tersedia)</p>`;
 
                     L.marker([lat, lon], {
                         icon: L.divIcon({
@@ -208,13 +211,14 @@
                             iconSize: [30, 30], iconAnchor: [15, 15]
                         })
                     }).addTo(gamasGroup).bindPopup(`
-                        <div style="text-align:center; min-width:150px;">
-                            <b style="color:red;">💥 DATA GAMAS</b><br>
+                        <div style="text-align:center; min-width:160px;">
+                            <b style="color:red; font-size:14px;">💥 DATA GAMAS</b><br>
                             <hr style="margin:5px 0">
-                            <div style="text-align:left; font-size:11px;">
+                            <div style="text-align:left; font-size:11px; line-height:1.5;">
                                 <b>Tiket:</b> ${g.Tiket || '-'}<br>
+                                <b>Definisi:</b> ${g.Definisi || '-'}<br>
                                 <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
-                                <b>PIC:</b> ${g.PIC || '-'}
+                                <b>Tanggal:</b> ${new Date(g.Tanggal).toLocaleDateString('id-ID')}
                             </div>
                             ${tombolEvidence}
                         </div>
@@ -222,6 +226,8 @@
                 }
             }
         });
+
+        // UPDATE STATISTIK (Angka ini sekarang PASTI sama dengan jumlah baris di Excel)
         document.getElementById('totalGamas').innerHTML = `<div style="color:red;">💥 ${countGamas} Gamas</div>`;
     }
 
