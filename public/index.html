@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Monitoring Survey & Gamas TA Pasuruan</title>
+    <title>Dashboard Monitoring Survey & Gamas SA PROBOLINGGO</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
@@ -141,23 +141,20 @@
 <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
-    // Inisialisasi Map (Fokus ke Area Pasuruan)
     let map = L.map('map').setView([-7.6417, 112.9067], 13);
-    let baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© Mas Ecky TA' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© Mas Ecky TA' }).addTo(map);
 
     let allData = [];
     let currentSheetName = "DATA";
     
-    // LAYER GROUPS (Biar Gamas dan Tracking terpisah)
-    let polylineGroup = L.featureGroup().addTo(map); // Garis jalan teknisi
-    let markerGroup = L.featureGroup().addTo(map);   // Foto survey teknisi
-    let gamasGroup = L.featureGroup().addTo(map);    // <--- LAYER KHUSUS GAMAS (💥/⚠️)
+    let polylineGroup = L.featureGroup().addTo(map);
+    let markerGroup = L.featureGroup().addTo(map);
+    let gamasGroup = L.featureGroup().addTo(map);
 
-    // FITUR: KONTROL LAYER (Pojok Kanan Atas Map)
     const overlayMaps = {
         "Garis Jalan Teknisi": polylineGroup,
         "Foto Survey Teknisi": markerGroup,
-        "Sejarah Gamas Pasuruan": gamasGroup // <--- Layer Gamas
+        "Sejarah Gamas Pasuruan": gamasGroup
     };
     L.control.layers(null, overlayMaps, {collapsed: false}).addTo(map);
 
@@ -169,7 +166,6 @@
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    // --- FUNGSI AMBIL DATA (DATA TEKNISI + DATA GAMAS) ---
     async function fetchData() {
         const tanggalInput = document.getElementById('selectTanggal').value;
         const sekarang = new Date();
@@ -184,7 +180,6 @@
             }
         }
 
-        // 1. Ambil Data Tracking Teknisi
         try {
             const response = await fetch(`${GAS_URL}?sheetName=${currentSheetName}`);
             allData = await response.json();
@@ -202,77 +197,64 @@
             
             select.value = valSebelumnya;
             renderMaps();
+            fetchGamasData(); // Panggil gamas setelah data teknisi
         } catch (e) { 
             console.error("Error Tracking:", e); 
-            allData = [];
             renderMaps();
         }
-
-        // 2. Ambil Data Gamas secara terpisah (Tahan Error)
-        fetchGamasData(); 
     }
 
-    // --- FUNGSI TAMPILKAN TITIK GAMAS ---
     async function fetchGamasData() {
-    try {
-        const res = await fetch(`${GAS_URL}?sheetName=db_gamas`);
-        const gamasData = await res.json();
-        gamasGroup.clearLayers();
+        try {
+            const res = await fetch(`${GAS_URL}?sheetName=db_gamas`);
+            const gamasData = await res.json();
+            gamasGroup.clearLayers();
 
-        gamasData.forEach(g => {
-            // Gabungkan dulu kalau datanya kepisah atau dempet
-            let raw = String(g.Lat || g.Latitude || "") + String(g.Lon || g.Longitude || "");
-            
-            // 1. Bersihkan semua titik kecuali di awal angka
-            // Kita pecah manual karena datanya "ajaib" (-7.915.531113.251.413)
-            let numbersOnly = raw.replace(/[^0-9-]/g, ""); // Ambil angka dan minus saja
-            
-            // 2. Logika Pemisahan Otomatis (Cari angka 113 atau 112 sebagai batas Longitude)
-            let latRaw, lonRaw;
-            if (numbersOnly.includes("113")) {
-                [latRaw, lonRaw] = numbersOnly.split("113");
-                lonRaw = "113" + lonRaw;
-            } else if (numbersOnly.includes("112")) {
-                [latRaw, lonRaw] = numbersOnly.split("112");
-                lonRaw = "112" + lonRaw;
-            }
+            gamasData.forEach(g => {
+                let raw = String(g.Lat || g.Latitude || "") + String(g.Lon || g.Longitude || "");
+                let numbersOnly = raw.replace(/[^0-9-]/g, ""); 
+                
+                let latRaw, lonRaw;
+                // Deteksi Longitude Jawa Timur (112 atau 113)
+                if (numbersOnly.includes("113")) {
+                    [latRaw, lonRaw] = numbersOnly.split("113");
+                    lonRaw = "113" + lonRaw;
+                } else if (numbersOnly.includes("112")) {
+                    [latRaw, lonRaw] = numbersOnly.split("112");
+                    lonRaw = "112" + lonRaw;
+                }
 
-            // 3. Masukkan Titik Desimal di posisi yang benar (setelah angka ke-1 atau ke-3)
-            const formatCoord = (str, isLat) => {
-                if (!str) return 0;
-                let s = str.replace(/-/g, ""); // Hilangkan minus dulu
-                // Latitude: X.XXXXX, Longitude: XXX.XXXXX
-                let formatted = isLat ? s.charAt(0) + "." + s.slice(1) : s.slice(0, 3) + "." + s.slice(3);
-                return parseFloat(isLat ? "-" + formatted : formatted);
-            };
+                const formatCoord = (str, isLat) => {
+                    if (!str) return 0;
+                    let s = str.replace(/-/g, "");
+                    let formatted = isLat ? s.charAt(0) + "." + s.slice(1) : s.slice(0, 3) + "." + s.slice(3);
+                    return parseFloat(isLat ? "-" + formatted : formatted);
+                };
 
-            let lat = formatCoord(latRaw, true);
-            let lon = formatCoord(lonRaw, false);
+                let lat = formatCoord(latRaw, true);
+                let lon = formatCoord(lonRaw, false);
 
-            if (!isNaN(lat) && !isNaN(lon) && lat < -5 && lat > -9) {
-                const iconGamas = L.divIcon({
-                    html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
-                    className: 'gamas-marker',
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 15]
-                });
+                if (!isNaN(lat) && !isNaN(lon) && lat < -5 && lat > -9) {
+                    const iconGamas = L.divIcon({
+                        html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
+                        className: 'gamas-marker',
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15]
+                    });
 
-                L.marker([lat, lon], {icon: iconGamas})
-                 .addTo(gamasGroup)
-                 .bindPopup(`
-                    <div style="text-align:center;">
-                        <b style="color:red;">💥 SEJARAH GAMAS</b><br>
-                        <b>Tiket:</b> ${g.Tiket}<br>
-                        <b>Penyebab:</b> ${g.Penyebab}<br>
-                        <hr>
-                        <small>Data Asli: ${raw}</small>
-                    </div>
-                 `);
-            }
-        });
-    } catch (e) { console.error("Error Gamas:", e); }
-}
-}
+                    L.marker([lat, lon], {icon: iconGamas})
+                     .addTo(gamasGroup)
+                     .bindPopup(`
+                        <div style="text-align:center;">
+                            <b style="color:red;">💥 SEJARAH GAMAS</b><br>
+                            <b>Tiket:</b> ${g.Tiket || '-'}<br>
+                            <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
+                            <a href="${g.Link_Evidence || '#'}" target="_blank" class="btn-view" style="background:red; color:white; display:block; padding:5px; border-radius:5px; text-decoration:none; margin-top:5px;">📂 Evidence</a>
+                        </div>
+                     `);
+                }
+            });
+        } catch (e) { console.error("Error Gamas:", e); }
     }
 
     function renderMaps() {
@@ -310,8 +292,8 @@
                     if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
                 }
                 if (lat && lat != 0) {
-                    const popupMsg = `<div style="text-align:center"><b>Temuan ${d.Nama}</b><br><small>${new Date(d.Timestamp).toLocaleTimeString()}</small><br><p style="margin:5px 0">${d.Keterangan}</p><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc;">📂 Buka di Telegram</a></div>`;
-                    L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg, {className: 'custom-popup'});
+                    const popupMsg = `<div style="text-align:center"><b>Temuan ${d.Nama}</b><br><small>${new Date(d.Timestamp).toLocaleTimeString()}</small><br><p style="margin:5px 0">${d.Keterangan}</p><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc; color:white; display:block; padding:5px; border-radius:5px; text-decoration:none;">📂 Telegram</a></div>`;
+                    L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg);
                 }
             }
 
@@ -324,36 +306,14 @@
         Object.keys(perUser).forEach(nama => {
             const coords = perUser[nama];
             if (coords.length > 1) {
-                const color = teknisiSel ? '#0084ff' : '#999';
-                L.polyline(coords, {color: color, weight: 4, opacity: 0.7}).addTo(polylineGroup);
+                L.polyline(coords, {color: teknisiSel ? '#0084ff' : '#999', weight: 4}).addTo(polylineGroup);
                 for (let j = 1; j < coords.length; j++) {
                     totalJarak += calculateDistance(coords[j-1][0], coords[j-1][1], coords[j][0], coords[j][1]);
                 }
             }
         });
 
-        // Update Statistik dan Status GPS (Logic Mas Ecky Tetap Sama)
-        const distElem = document.getElementById('jarakTempuh');
-        let statusHtml = "";
-        if (teknisiSel && waktuTerakhir && currentSheetName === "DATA") {
-            const selisihMenit = Math.floor((sekarang - waktuTerakhir) / 60000);
-            const isSudahOff = ketTerakhir.includes("Selesai") || ketTerakhir.includes("OFF");
-            if (!isSudahOff && selisihMenit >= 5) {
-                distElem.classList.add('status-offline');
-                statusHtml = `<span class="warning-text">⚠️ GPS MACET ${selisihMenit} MENIT</span>`;
-            } else if (isSudahOff) {
-                distElem.classList.remove('status-offline');
-                statusHtml = `<span class="off-text">💤 SURVEY SELESAI / OFF</span>`;
-            } else {
-                distElem.classList.remove('status-offline');
-                statusHtml = `<span class="success-text">✅ GPS AKTIF</span>`;
-            }
-        } else {
-            distElem.classList.remove('status-offline');
-            if (currentSheetName !== "DATA") statusHtml = `<span style="color:blue; font-size:10px;">📚 DATA ARSIP</span>`;
-        }
-
-        distElem.innerHTML = `<div>📍 ${totalJarak.toFixed(2)} KM</div> ${statusHtml}`;
+        document.getElementById('jarakTempuh').innerHTML = `<div>📍 ${totalJarak.toFixed(2)} KM</div>`;
         document.getElementById('totalLaporan').innerHTML = `<div>📸 ${totalLaporan} Foto</div>`;
         
         if (filtered.length > 0) {
@@ -363,15 +323,7 @@
     }
 
     fetchData();
-    // Auto-refresh data teknisi setiap 1 menit (Gamas tidak perlu auto-refresh)
-    setInterval(() => {
-        if (currentSheetName === "DATA") {
-             // Cukup refresh data teknisi biar gak berat
-             fetch(`${GAS_URL}?sheetName=${currentSheetName}`)
-                 .then(res => res.json())
-                 .then(data => { allData = data; renderMaps(); });
-        }
-    }, 60000); 
+    setInterval(() => { if (currentSheetName === "DATA") fetchData(); }, 60000); 
 </script>
 </body>
 </html>
