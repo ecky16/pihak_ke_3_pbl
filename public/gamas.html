@@ -80,16 +80,16 @@
                 // 1. SIMPAN DATA KE SPREADSHEET (GAS)
                 statusDiv.innerText = "⏳ Menyimpan data ke Spreadsheet...";
                 const data = {
-                    action: 'submit_gamas',
-                    tanggal: document.getElementById('tanggal').value,
-                    tiket: document.getElementById('tiket').value,
-                    definisi: document.getElementById('definisi').value,
-                    penyebab: document.getElementById('penyebab').value,
-                    lat: document.getElementById('lat').value,
-                    lon: document.getElementById('lon').value,
-                    keterangan: document.getElementById('keterangan').value,
-                    albumUrl: "Cek di Channel"
-                };
+    action: 'submit_gamas',
+    tanggal: document.getElementById('tanggal').value,
+    tiket: document.getElementById('tiket').value,
+    definisi: document.getElementById('definisi').value,
+    penyebab: document.getElementById('penyebab').value,
+    lat: document.getElementById('lat').value,
+    lon: document.getElementById('lon').value,
+    keterangan: document.getElementById('keterangan').value,
+    albumUrl: `https://t.me/c/${CHANNEL_ID.replace("-100", "")}` // Ini akan jadi link ke channel
+};
                 await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(data) });
 
                 // 2. PROSES KIRIM ALBUM KE TELEGRAM
