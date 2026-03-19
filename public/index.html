@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Monitoring Survey & Gamas SA PROBOLINGGO</title>
+    <title>Dashboard Monitoring Survey & Gamas TA PROBOLINGGO</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
-        /* CSS Wajib Biar Map Gak Blank */
         html, body { height: 100%; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; background: #f0f2f5; }
         
@@ -24,7 +23,6 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        /* Container Logo di Pojok Kanan */
         .brand-container {
             margin-left: auto;
             display: flex;
@@ -38,7 +36,7 @@
             object-fit: contain;
         }
 
-        #map { flex-grow: 1; width: 100%; height: 100vh; /* Tambahkan ini biar muncul */ background: #e5e3df; }
+        #map { flex-grow: 1; width: 100%; height: 100vh; background: #e5e3df; }
 
         .stats-box { 
             background: #fff; 
@@ -54,22 +52,6 @@
             min-width: 120px;
         }
 
-        .status-offline { 
-            background-color: #fff0f0 !important; 
-            border: 2px solid #ff4d4d !important; 
-            color: #d93025 !important;
-            animation: blinker 1.5s linear infinite;
-        }
-
-        @keyframes blinker {
-            50% { opacity: 0.7; }
-        }
-
-        .warning-text { color: #d93025; font-size: 10px; margin-top: 2px; }
-        .success-text { color: #28a745; font-size: 10px; margin-top: 2px; }
-        .off-text { color: #888; font-size: 10px; margin-top: 2px; }
-        .target-reached { color: #28a745 !important; border-color: #28a745; background: #f4fff7; }
-        
         select, input { 
             padding: 10px; 
             border-radius: 6px; 
@@ -93,7 +75,6 @@
 
         .custom-popup .leaflet-popup-content-wrapper { border-radius: 12px; padding: 5px; }
         
-        /* Tombol Evidence Merah */
         .btn-view {
             display: block;
             text-align: center;
@@ -128,9 +109,7 @@
     </div>
 
     <div class="brand-container">
-        <img src="https://raw.githubusercontent.com/ecky16/pihak_ke_3_pbl/main/Logo TA New.png" 
-             alt="Logo Telkom Akses" 
-             class="logo-ta">
+        <img src="/Logo TA New.png" alt="Logo Telkom Akses" class="logo-ta">
     </div>
 </div>
 
@@ -145,6 +124,7 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© Mas Ecky TA' }).addTo(map);
 
     let allData = [];
+    let allGamasData = []; // Variable global simpan data gamas
     let currentSheetName = "DATA";
     
     let polylineGroup = L.featureGroup().addTo(map);
@@ -181,8 +161,13 @@
         }
 
         try {
+            // 1. Ambil Data Tracking
             const response = await fetch(`${GAS_URL}?sheetName=${currentSheetName}`);
             allData = await response.json();
+            
+            // 2. Ambil Data Gamas
+            const resGamas = await fetch(`${GAS_URL}?sheetName=db_gamas`);
+            allGamasData = await resGamas.json();
             
             const select = document.getElementById('selectTeknisi');
             const valSebelumnya = select.value;
@@ -197,73 +182,78 @@
             
             select.value = valSebelumnya;
             renderMaps();
-            fetchGamasData(); // Panggil gamas setelah data teknisi
         } catch (e) { 
-            console.error("Error Tracking:", e); 
+            console.error("Error Fetch:", e); 
             renderMaps();
         }
     }
 
-    async function fetchGamasData() {
-        try {
-            const res = await fetch(`${GAS_URL}?sheetName=db_gamas`);
-            const gamasData = await res.json();
-            gamasGroup.clearLayers();
+    function renderGamasPoints() {
+        const tanggalSel = document.getElementById('selectTanggal').value;
+        gamasGroup.clearLayers();
 
-            gamasData.forEach(g => {
-                let raw = String(g.Lat || g.Latitude || "") + String(g.Lon || g.Longitude || "");
-                let numbersOnly = raw.replace(/[^0-9-]/g, ""); 
-                
-                let latRaw, lonRaw;
-                // Deteksi Longitude Jawa Timur (112 atau 113)
-                if (numbersOnly.includes("113")) {
-                    [latRaw, lonRaw] = numbersOnly.split("113");
-                    lonRaw = "113" + lonRaw;
-                } else if (numbersOnly.includes("112")) {
-                    [latRaw, lonRaw] = numbersOnly.split("112");
-                    lonRaw = "112" + lonRaw;
-                }
-
-                const formatCoord = (str, isLat) => {
-                    if (!str) return 0;
-                    let s = str.replace(/-/g, "");
-                    let formatted = isLat ? s.charAt(0) + "." + s.slice(1) : s.slice(0, 3) + "." + s.slice(3);
-                    return parseFloat(isLat ? "-" + formatted : formatted);
-                };
-
-                let lat = formatCoord(latRaw, true);
-                let lon = formatCoord(lonRaw, false);
-
-                if (!isNaN(lat) && !isNaN(lon) && lat < -5 && lat > -9) {
-                    const iconGamas = L.divIcon({
-                        html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
-                        className: 'gamas-marker',
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 15]
-                    });
-
-                    L.marker([lat, lon], {icon: iconGamas})
-                     .addTo(gamasGroup)
-                     .bindPopup(`
-                        <div style="text-align:center;">
-                            <b style="color:red;">💥 SEJARAH GAMAS</b><br>
-                            <b>Tiket:</b> ${g.Tiket || '-'}<br>
-                            <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
-                            <a href="${g.Link_Evidence || '#'}" target="_blank" class="btn-view" style="background:red; color:white; display:block; padding:5px; border-radius:5px; text-decoration:none; margin-top:5px;">📂 Evidence</a>
-                        </div>
-                     `);
-                }
+        let filteredGamas = allGamasData;
+        if (tanggalSel) {
+            filteredGamas = allGamasData.filter(g => {
+                if (!g.Tanggal) return false;
+                // Format YYYY-MM-DD
+                const tglGamas = new Date(g.Tanggal).toISOString().split('T')[0];
+                return tglGamas === tanggalSel;
             });
-        } catch (e) { console.error("Error Gamas:", e); }
+        }
+
+        filteredGamas.forEach(g => {
+            let raw = String(g.Lat || g.Latitude || "") + String(g.Lon || g.Longitude || "");
+            let numbersOnly = raw.replace(/[^0-9-]/g, ""); 
+            
+            let latRaw, lonRaw;
+            if (numbersOnly.includes("113")) {
+                [latRaw, lonRaw] = numbersOnly.split("113");
+                lonRaw = "113" + lonRaw;
+            } else if (numbersOnly.includes("112")) {
+                [latRaw, lonRaw] = numbersOnly.split("112");
+                lonRaw = "112" + lonRaw;
+            }
+
+            const formatCoord = (str, isLat) => {
+                if (!str) return 0;
+                let s = str.replace(/-/g, "");
+                let formatted = isLat ? s.charAt(0) + "." + s.slice(1) : s.slice(0, 3) + "." + s.slice(3);
+                return parseFloat(isLat ? "-" + formatted : formatted);
+            };
+
+            let lat = formatCoord(latRaw, true);
+            let lon = formatCoord(lonRaw, false);
+
+            if (!isNaN(lat) && !isNaN(lon) && lat !== 0) {
+                const iconGamas = L.divIcon({
+                    html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
+                    className: 'gamas-marker',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+
+                L.marker([lat, lon], {icon: iconGamas})
+                 .addTo(gamasGroup)
+                 .bindPopup(`
+                    <div style="text-align:center;">
+                        <b style="color:red;">💥 SEJARAH GAMAS</b><br>
+                        <b>Tiket:</b> ${g.Tiket || '-'}<br>
+                        <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
+                        <a href="${g.Link_Evidence || '#'}" target="_blank" class="btn-view">📂 Evidence</a>
+                    </div>
+                 `);
+            }
+        });
     }
 
     function renderMaps() {
         const teknisiSel = document.getElementById('selectTeknisi').value;
         const tanggalSel = document.getElementById('selectTanggal').value;
-        const sekarang = new Date();
 
         polylineGroup.clearLayers();
         markerGroup.clearLayers();
+        renderGamasPoints(); // Filter Gamas juga saat render
 
         let filtered = allData;
         if (teknisiSel) filtered = filtered.filter(d => d.Nama === teknisiSel);
@@ -273,17 +263,9 @@
 
         let totalLaporan = 0;
         let totalJarak = 0;
-        let waktuTerakhir = null;
-        let ketTerakhir = "";
         const perUser = {};
 
         filtered.forEach((d, i) => {
-            const tglData = new Date(d.Timestamp);
-            if (!waktuTerakhir || tglData > waktuTerakhir) {
-                waktuTerakhir = tglData;
-                ketTerakhir = d.Keterangan;
-            }
-
             if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
                 totalLaporan++;
                 let lat = d.Latitude, lon = d.Longitude;
@@ -292,7 +274,7 @@
                     if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
                 }
                 if (lat && lat != 0) {
-                    const popupMsg = `<div style="text-align:center"><b>Temuan ${d.Nama}</b><br><small>${new Date(d.Timestamp).toLocaleTimeString()}</small><br><p style="margin:5px 0">${d.Keterangan}</p><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc; color:white; display:block; padding:5px; border-radius:5px; text-decoration:none;">📂 Telegram</a></div>`;
+                    const popupMsg = `<div style="text-align:center"><b>Temuan ${d.Nama}</b><br><p style="margin:5px 0">${d.Keterangan}</p><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc;">📂 Telegram</a></div>`;
                     L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg);
                 }
             }
@@ -303,25 +285,17 @@
             }
         });
 
-        // Cari bagian ini di index.html Mas Ecky
-Object.keys(perUser).forEach(nama => {
-    const coords = perUser[nama];
-    if (coords.length > 1) {
-        // GANTI WARNA DI SINI
-        const warnaGaris = teknisiSel ? '#007bff' : '#0056b3'; // Biru terang kalau pilih teknisi, biru tua kalau semua
-        
-        L.polyline(coords, {
-            color: warnaGaris, 
-            weight: 5,        // Agak ditebelin dikit biar jelas
-            opacity: 0.8,
-            lineJoin: 'round'
-        }).addTo(polylineGroup);
+        Object.keys(perUser).forEach(nama => {
+            const coords = perUser[nama];
+            if (coords.length > 1) {
+                const warnaGaris = teknisiSel ? '#007bff' : '#0056b3'; 
+                L.polyline(coords, { color: warnaGaris, weight: 5, opacity: 0.8, lineJoin: 'round' }).addTo(polylineGroup);
 
-        for (let j = 1; j < coords.length; j++) {
-            totalJarak += calculateDistance(coords[j-1][0], coords[j-1][1], coords[j][0], coords[j][1]);
-        }
-    }
-});
+                for (let j = 1; j < coords.length; j++) {
+                    totalJarak += calculateDistance(coords[j-1][0], coords[j-1][1], coords[j][0], coords[j][1]);
+                }
+            }
+        });
 
         document.getElementById('jarakTempuh').innerHTML = `<div>📍 ${totalJarak.toFixed(2)} KM</div>`;
         document.getElementById('totalLaporan').innerHTML = `<div>📸 ${totalLaporan} Foto</div>`;
