@@ -23,64 +23,24 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        .brand-container {
-            margin-left: auto;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
+        .brand-container { margin-left: auto; display: flex; align-items: center; gap: 10px; }
         .logo-ta { height: 60px; width: auto; object-fit: contain; }
-
         #map { flex-grow: 1; width: 100%; height: 100vh; background: #e5e3df; }
 
         .stats-box { 
-            background: #fff; 
-            padding: 8px 12px; 
-            border-radius: 8px; 
-            border: 1px solid #eee;
-            font-weight: 600; 
-            font-size: 13px;
-            color: #333;
-            min-width: 100px;
-            text-align: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            background: #fff; padding: 8px 12px; border-radius: 8px; border: 1px solid #eee;
+            font-weight: 600; font-size: 13px; color: #333; min-width: 100px; text-align: center;
         }
 
         .label-range { font-size: 11px; font-weight: bold; color: #666; margin-bottom: 2px; }
 
-        select, input { 
-            padding: 8px; 
-            border-radius: 6px; 
-            border: 1px solid #ccd0d5; 
-            background: white;
-            font-size: 13px;
-        }
-
-        button { 
-            padding: 8px 15px; 
-            background: #0084ff; 
-            color: white; 
-            border: none; 
-            border-radius: 6px; 
-            font-weight: bold;
-            cursor: pointer; 
-            transition: 0.2s;
-        }
-
+        select, input { padding: 8px; border-radius: 6px; border: 1px solid #ccd0d5; background: white; font-size: 13px; }
+        button { padding: 8px 15px; background: #0084ff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
         button:hover { background: #0073e6; }
 
         .btn-view {
-            display: block;
-            text-align: center;
-            background: #d32f2f;
-            color: white !important;
-            padding: 8px;
-            border-radius: 6px;
-            text-decoration: none;
-            margin-top: 10px;
-            font-size: 11px;
-            font-weight: bold;
+            display: block; text-align: center; background: #d32f2f; color: white !important;
+            padding: 8px; border-radius: 6px; text-decoration: none; margin-top: 10px; font-size: 11px; font-weight: bold;
         }
     </style>
 </head>
@@ -89,11 +49,11 @@
 <div id="controls">
     <div style="display: flex; flex-direction: column;">
         <span class="label-range">DARI TANGGAL:</span>
-        <input type="date" id="tglMulai" onchange="fetchData()">
+        <input type="date" id="tglMulai">
     </div>
     <div style="display: flex; flex-direction: column;">
         <span class="label-range">SAMPAI TANGGAL:</span>
-        <input type="date" id="tglSelesai" onchange="fetchData()">
+        <input type="date" id="tglSelesai">
     </div>
 
     <div style="display: flex; flex-direction: column;">
@@ -103,7 +63,7 @@
         </select>
     </div>
     
-    <button onclick="fetchData()" style="margin-top: 12px;">🔄 Refresh</button>
+    <button onclick="fetchData()" style="margin-top: 12px;">🔄 Terapkan Filter</button>
     
     <div class="stats-box" id="jarakTempuh" style="margin-top: 12px;">
         <div style="color: #0084ff;">📍 0.00 KM</div>
@@ -132,7 +92,6 @@
 <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
-    // Inisialisasi Map (Probolinggo/Pasuruan Area)
     let map = L.map('map').setView([-7.6417, 112.9067], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© Mas Ecky TA' }).addTo(map);
 
@@ -158,21 +117,27 @@
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    async function fetchData() {
-        const tglMulai = document.getElementById('tglMulai').value;
-        const tglSelesai = document.getElementById('tglSelesai').value;
+    // Fungsi Filter Tanggal yang Lebih Akurat
+    function isDateInRange(targetDate, start, end) {
+        if (!targetDate) return false;
+        let d = new Date(targetDate);
+        if (isNaN(d.getTime())) return false;
         
-        // Default ke tab DATA (bulan berjalan)
-        let sheetName = "DATA";
+        let dStr = d.toISOString().split('T')[0];
+        if (!start && !end) return true;
+        if (start && !end) return dStr >= start;
+        if (!start && end) return dStr <= end;
+        return dStr >= start && dStr <= end;
+    }
 
+    async function fetchData() {
         try {
-            const response = await fetch(`${GAS_URL}?sheetName=${sheetName}`);
+            const response = await fetch(`${GAS_URL}?sheetName=DATA`);
             allData = await response.json();
             
             const resGamas = await fetch(`${GAS_URL}?sheetName=db_gamas`);
             allGamasData = await resGamas.json();
             
-            // Update Dropdown Teknisi
             const select = document.getElementById('selectTeknisi');
             const valSebelumnya = select.value;
             const daftarNama = [...new Set(allData.map(item => item.Nama))].filter(n => n && n !== "Unknown");
@@ -186,24 +151,12 @@
             select.value = valSebelumnya;
 
             renderMaps();
-        } catch (e) { 
-            console.error("Fetch Error:", e);
-        }
-    }
-
-    function isDateInRange(targetDate, start, end) {
-        if (!targetDate) return false;
-        const d = new Date(targetDate).toISOString().split('T')[0];
-        if (!start && !end) return true; // Tampilkan semua jika tgl kosong
-        if (start && !end) return d >= start;
-        if (!start && end) return d <= end;
-        return d >= start && d <= end;
+        } catch (e) { console.error("Fetch Error:", e); }
     }
 
     function renderGamasPoints() {
         const tglMulai = document.getElementById('tglMulai').value;
         const tglSelesai = document.getElementById('tglSelesai').value;
-        
         gamasGroup.clearLayers();
         let countGamas = 0;
 
@@ -236,13 +189,12 @@
                     const iconGamas = L.divIcon({
                         html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
                         className: 'gamas-marker',
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 15]
+                        iconSize: [30, 30], iconAnchor: [15, 15]
                     });
 
                     L.marker([lat, lon], {icon: iconGamas})
                      .addTo(gamasGroup)
-                     .bindPopup(`<b>Tiket:</b> ${g.Tiket}<br><b>Penyebab:</b> ${g.Penyebab}`);
+                     .bindPopup(`<b>Tiket:</b> ${g.Tiket}<br><b>Definisi:</b> ${g.Definisi}<br><b>Penyebab:</b> ${g.Penyebab}`);
                 }
             }
         });
@@ -266,17 +218,32 @@
         const perUser = {};
 
         filtered.forEach((d, i) => {
-            if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
+            // Logika Munculkan Foto Survey
+            if (d.Photo_URL || d.Photo) {
                 totalLaporan++;
-                let lat = d.Latitude, lon = d.Longitude;
+                let lat = parseFloat(d.Latitude), lon = parseFloat(d.Longitude);
+                
+                // Jika baris foto tidak ada koordinat, pancing dari data sebelumnya
+                if (!lat || lat === 0) {
+                    const lastPos = filtered.slice(0, i).reverse().find(r => r.Nama === d.Nama && r.Latitude != 0);
+                    if (lastPos) { lat = parseFloat(lastPos.Latitude); lon = parseFloat(lastPos.Longitude); }
+                }
+
                 if (lat && lat != 0) {
-                    L.marker([lat, lon]).addTo(markerGroup).bindPopup(`<b>${d.Nama}</b><br>${d.Keterangan}`);
+                    const linkFoto = d.Photo_URL || d.Photo;
+                    L.marker([lat, lon]).addTo(markerGroup).bindPopup(`
+                        <div style="text-align:center">
+                            <b>📸 Survey ${d.Nama}</b><br>
+                            <p>${d.Keterangan || '-'}</p>
+                            <a href="${linkFoto}" target="_blank" class="btn-view" style="background:#0088cc;">📂 Buka Telegram</a>
+                        </div>
+                    `);
                 }
             }
 
             if (d.Latitude && d.Longitude && d.Latitude != 0) {
                 if (!perUser[d.Nama]) perUser[d.Nama] = [];
-                perUser[d.Nama].push([d.Latitude, d.Longitude]);
+                perUser[d.Nama].push([parseFloat(d.Latitude), parseFloat(d.Longitude)]);
             }
         });
 
@@ -294,12 +261,11 @@
         document.getElementById('totalLaporan').innerHTML = `<div style="color: #28a745;">📸 ${totalLaporan} Laporan</div><div style="font-size: 9px; color: #999;">FOTO SURVEY</div>`;
         
         if (filtered.length > 0) {
-            const bounds = L.featureGroup([polylineGroup, markerGroup, gamasGroup]).getBounds();
-            if (bounds.isValid()) map.fitBounds(bounds, {padding: [50, 50]});
+            const combinedBounds = L.featureGroup([polylineGroup, markerGroup, gamasGroup]).getBounds();
+            if (combinedBounds.isValid()) map.fitBounds(combinedBounds, {padding: [50, 50]});
         }
     }
 
-    // Set default tanggal hari ini
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('tglMulai').value = today;
     document.getElementById('tglSelesai').value = today;
