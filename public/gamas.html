@@ -1,66 +1,7 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lapor Gamas</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f4f4; color: #333; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
-        input, select, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #d32f2f; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        button:disabled { background: #999; }
-        #status { font-size: 12px; color: blue; text-align: center; margin-top: 10px; display: none; }
-    </style>
-</head>
-<body>
-    <h3>⚠️ Input Data Gamas</h3>
-    <div class="form-group">
-        <label>Tanggal Gamas</label>
-        <input type="date" id="tanggal">
-    </div>
-    <div class="form-group">
-        <label>Nomor Tiket</label>
-        <input type="text" id="tiket" placeholder="Contoh: IN123456">
-    </div>
-    <div class="form-group">
-        <label>Definisi Gamas</label>
-        <select id="definisi">
-            <option value="ODP">ODP</option>
-            <option value="DISTRIBUSI">DISTRIBUSI</option>
-            <option value="FEEDER">FEEDER</option>
-        </select>
-    </div>
-    <div class="form-group">
-        <label>Penyebab Gamas</label>
-        <input type="text" id="penyebab" placeholder="Misal: Kabel Putus/Tersenggol">
-    </div>
-    <div class="form-group">
-        <label>Manual Latitude</label>
-        <input type="text" id="lat" placeholder="-7.xxxx">
-    </div>
-    <div class="form-group">
-        <label>Manual Longitude</label>
-        <input type="text" id="lon" placeholder="112.xxxx">
-    </div>
-    <div class="form-group">
-        <label>Keterangan Tambahan</label>
-        <textarea id="keterangan" rows="3"></textarea>
-    </div>
-    <div class="form-group">
-        <label>Evidence Foto (Maks 10)</label>
-        <input type="file" id="fotoInput" accept="image/*" multiple>
-    </div>
-
-    <div id="status">⏳ Sedang memproses...</div>
-    <button id="btnSubmit" onclick="sendAllData()">SUBMIT DATA GAMAS</button>
-
-    <script>
+<script>
         const tg = window.Telegram.WebApp;
-        const BOT_TOKEN = "8648713313:AAHOW_7a8ga1Rqe-d2HHhU6EVtJPrti3PRs"; // Token bot Mas Ecky
-        const CHANNEL_ID = "-1003759185457"; // ID Channel
+        const BOT_TOKEN = "8648713313:AAHOW_7a8ga1Rqe-d2HHhU6EVtJPrti3PRs";
+        const CHANNEL_ID = "-1003759185457";
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
         tg.expand();
@@ -71,12 +12,13 @@
             const files = document.getElementById('fotoInput').files;
             
             if (!document.getElementById('tiket').value) return alert("Nomor Tiket wajib diisi!");
+            if (files.length === 0) return alert("Minimal lampirkan 1 foto evidence!");
             
             btn.disabled = true;
             statusDiv.style.display = "block";
 
             try {
-                // 1. KIRIM DATA TEKS KE GAS
+                // 1. SIMPAN DATA KE SPREADSHEET (GAS)
                 statusDiv.innerText = "⏳ Menyimpan data ke Spreadsheet...";
                 const data = {
                     action: 'submit_gamas',
@@ -89,27 +31,42 @@
                     keterangan: document.getElementById('keterangan').value,
                     albumUrl: "Cek di Channel"
                 };
-
                 await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(data) });
 
-                // 2. KIRIM FOTO KE TELEGRAM CHANNEL (SATU PER SATU)
-                if (files.length > 0) {
-                    for (let i = 0; i < files.length; i++) {
-                        statusDiv.innerText = `⏳ Mengirim foto ke-${i+1} dari ${files.length}...`;
-                        const formData = new FormData();
-                        formData.append('chat_id', CHANNEL_ID);
-                        formData.append('photo', files[i]);
-                        formData.append('caption', `⚠️ EVIDENCE GAMAS\nTiket: ${data.tiket}\nLokasi: ${data.lat}, ${data.lon}`);
+                // 2. PROSES KIRIM ALBUM KE TELEGRAM
+                statusDiv.innerText = "⏳ Menyiapkan Album Foto...";
+                const formData = new FormData();
+                formData.append('chat_id', CHANNEL_ID);
 
-                        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                            method: 'POST',
-                            body: formData
-                        });
-                    }
+                // Keterangan lengkap untuk caption Album
+                const fullCaption = `⚠️ EVIDENCE GAMAS\n\n📌 Tiket: ${data.tiket}\n📂 Definisi: ${data.definisi}\n🛠️ Penyebab: ${data.penyebab}\n📍 Lokasi: ${data.lat}, ${data.lon}\n📝 Ket: ${data.keterangan}`;
+
+                let mediaArray = [];
+                for (let i = 0; i < files.length; i++) {
+                    const name = `foto${i}`;
+                    formData.append(name, files[i]);
+                    
+                    mediaArray.push({
+                        type: 'photo',
+                        media: `attach://${name}`,
+                        caption: i === 0 ? fullCaption : "" // Caption cuma di foto pertama biar rapi
+                    });
                 }
 
-                statusDiv.innerText = "✅ Berhasil Terkirim!";
-                setTimeout(() => tg.close(), 1500);
+                formData.append('media', JSON.stringify(mediaArray));
+
+                statusDiv.innerText = `🚀 Mengirim Album (${files.length} Foto)...`;
+                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMediaGroup`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    statusDiv.innerText = "✅ Berhasil Terkirim ke Channel!";
+                    setTimeout(() => tg.close(), 1500);
+                } else {
+                    throw new Error("Gagal kirim album ke Telegram.");
+                }
 
             } catch (e) {
                 alert("Error: " + e.message);
@@ -118,5 +75,3 @@
             }
         }
     </script>
-</body>
-</html>
