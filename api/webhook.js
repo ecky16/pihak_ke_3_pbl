@@ -2,7 +2,7 @@ const axios = require('axios');
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CHANNEL_ID = '-1003759185457';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
-const WEB_APP_URL = 'https://nama-proyek-mas-ecky.vercel.app/gamas.html'; // GANTI DENGAN URL WEB APP MAS
+const WEB_APP_URL = 'https://pihak-ke-3-pbl.vercel.app/gamas.html'; // GANTI DENGAN URL WEB APP MAS
 
 module.exports = async (req, res) => {
     if (req.method !== 'POST') return res.status(200).send('OK');
