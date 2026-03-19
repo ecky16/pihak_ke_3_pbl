@@ -303,15 +303,25 @@
             }
         });
 
-        Object.keys(perUser).forEach(nama => {
-            const coords = perUser[nama];
-            if (coords.length > 1) {
-                L.polyline(coords, {color: teknisiSel ? '#0084ff' : '#999', weight: 4}).addTo(polylineGroup);
-                for (let j = 1; j < coords.length; j++) {
-                    totalJarak += calculateDistance(coords[j-1][0], coords[j-1][1], coords[j][0], coords[j][1]);
-                }
-            }
-        });
+        // Cari bagian ini di index.html Mas Ecky
+Object.keys(perUser).forEach(nama => {
+    const coords = perUser[nama];
+    if (coords.length > 1) {
+        // GANTI WARNA DI SINI
+        const warnaGaris = teknisiSel ? '#007bff' : '#0056b3'; // Biru terang kalau pilih teknisi, biru tua kalau semua
+        
+        L.polyline(coords, {
+            color: warnaGaris, 
+            weight: 5,        // Agak ditebelin dikit biar jelas
+            opacity: 0.8,
+            lineJoin: 'round'
+        }).addTo(polylineGroup);
+
+        for (let j = 1; j < coords.length; j++) {
+            totalJarak += calculateDistance(coords[j-1][0], coords[j-1][1], coords[j][0], coords[j][1]);
+        }
+    }
+});
 
         document.getElementById('jarakTempuh').innerHTML = `<div>📍 ${totalJarak.toFixed(2)} KM</div>`;
         document.getElementById('totalLaporan').innerHTML = `<div>📸 ${totalLaporan} Foto</div>`;
