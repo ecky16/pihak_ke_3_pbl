@@ -90,8 +90,12 @@
 
     // Set map ke Probolinggo
     let map = L.map('map').setView([-7.7569, 113.2115], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© Mas Ecky TA' }).addTo(map);
-
+L.tileLayer('http://{s}.google.com/vt?lyrs=m&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: '© Google Maps - Mas Ecky TA'
+}).addTo(map);
+    
     let allData = [];
     let allGamasData = [];
     let currentSheetName = "DATA";
