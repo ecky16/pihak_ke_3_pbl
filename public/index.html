@@ -12,15 +12,9 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; background: #f0f2f5; }
         
         #controls { 
-            padding: 15px 20px; 
-            background: #ffffff; 
-            border-bottom: 1px solid #ddd; 
-            display: flex; 
-            gap: 15px; 
-            align-items: center; 
-            flex-wrap: wrap; 
-            z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 20px; background: #ffffff; border-bottom: 1px solid #ddd; 
+            display: flex; gap: 15px; align-items: center; flex-wrap: wrap; 
+            z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
         .brand-container { margin-left: auto; display: flex; align-items: center; gap: 10px; }
@@ -35,8 +29,13 @@
         .label-range { font-size: 11px; font-weight: bold; color: #666; margin-bottom: 2px; }
 
         select, input { padding: 8px; border-radius: 6px; border: 1px solid #ccd0d5; background: white; font-size: 13px; }
-        button { padding: 8px 15px; background: #0084ff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        
+        button { 
+            padding: 8px 15px; background: #0084ff; color: white; border: none; 
+            border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
         button:hover { background: #0073e6; }
+        button:disabled { background: #cccccc; cursor: not-allowed; }
 
         .btn-view {
             display: block; text-align: center; background: #d32f2f; color: white !important;
@@ -48,30 +47,33 @@
 
 <div id="controls">
     <div style="display:flex; flex-direction:column; gap:2px;">
-        <small style="font-size:9px; font-weight:bold; color:#666;">DARI TANGGAL</small>
-        <input type="date" id="tglMulai" onchange="fetchData()">
+        <small class="label-range">DARI TANGGAL</small>
+        <input type="date" id="tglMulai" onchange="renderMaps()">
     </div>
     <div style="display:flex; flex-direction:column; gap:2px;">
-        <small style="font-size:9px; font-weight:bold; color:#666;">SAMPAI TANGGAL</small>
-        <input type="date" id="tglSelesai" onchange="fetchData()">
+        <small class="label-range">SAMPAI TANGGAL</small>
+        <input type="date" id="tglSelesai" onchange="renderMaps()">
     </div>
 
     <select id="selectTeknisi" onchange="renderMaps()">
         <option value="">-- Semua Teknisi --</option>
     </select>
     
-    <button onclick="fetchData()">🔄 Refresh</button>
+    <button id="btnRefresh" onclick="fetchData(true)">🔄 Refresh Data</button>
     
     <div class="stats-box" id="jarakTempuh">
-        <div>📍 0 KM</div>
+        <div style="color:#0084ff;">📍 0.00 KM</div>
+        <div style="font-size:9px; color:#999;">JARAK TEMPUH</div>
     </div>
     
     <div class="stats-box" id="totalLaporan">
-        <div>📸 0 Foto</div>
+        <div style="color:#28a745;">📸 0 Laporan</div>
+        <div style="font-size:9px; color:#999;">FOTO SURVEY</div>
     </div>
 
     <div class="stats-box" id="totalGamas" style="border-left: 4px solid red;">
         <div style="color:red;">💥 0 Gamas</div>
+        <div style="font-size:9px; color:#999;">TOTAL GANGGUAN</div>
     </div>
 
     <div class="brand-container">
@@ -86,8 +88,8 @@
 <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
-    // Pakai koordinat pusat Kota Probolinggo:
-let map = L.map('map').setView([-7.7569, 113.2115], 13);
+    // Set map ke Probolinggo
+    let map = L.map('map').setView([-7.7569, 113.2115], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© Mas Ecky TA' }).addTo(map);
 
     let allData = [];
@@ -99,9 +101,9 @@ let map = L.map('map').setView([-7.7569, 113.2115], 13);
     let gamasGroup = L.featureGroup().addTo(map);
 
     const overlayMaps = {
-        "Garis Jalan Teknisi": polylineGroup,
-        "Foto Survey Teknisi": markerGroup,
-        "History Gamas": gamasGroup
+        "Jalur Survey (Biru)": polylineGroup,
+        "Marker Survey (Foto)": markerGroup,
+        "History Gamas (Api)": gamasGroup
     };
     L.control.layers(null, overlayMaps, {collapsed: false}).addTo(map);
 
@@ -113,14 +115,10 @@ let map = L.map('map').setView([-7.7569, 113.2115], 13);
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    // LOGIKA FILTER RANGE TANGGAL
-function isDateInRange(targetDate, start, end) {
+    // WIB Friendly Date Filter
+    function isDateInRange(targetDate, start, end) {
         if (!targetDate) return false;
-        
-        // Buat objek date dari target (Spreadsheet)
         const d = new Date(targetDate);
-        
-        // Ambil tahun, bulan, tanggal secara lokal (WIB), bukan UTC
         const yyyy = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, '0');
         const dd = String(d.getDate()).padStart(2, '0');
@@ -131,27 +129,61 @@ function isDateInRange(targetDate, start, end) {
         if (!start && end) return formatLokal <= end;
         return formatLokal >= start && formatLokal <= end;
     }
-    async function fetchData() {
+
+    // UPGRADE 2: Fungsi Helper Pembersih Koordinat Gamas
+    function cleanGamasCoord(latRaw, lonRaw) {
+        let raw = String(latRaw || "") + String(lonRaw || "");
+        let numbersOnly = raw.replace(/[^0-9-]/g, ""); 
+        
+        let lRaw, loRaw;
+        if (numbersOnly.includes("113")) {
+            [lRaw, loRaw] = numbersOnly.split("113");
+            loRaw = "113" + loRaw;
+        } else if (numbersOnly.includes("112")) {
+            [lRaw, loRaw] = numbersOnly.split("112");
+            loRaw = "112" + loRaw;
+        } else {
+            return { lat: parseFloat(latRaw), lon: parseFloat(lonRaw) }; // Fallback normal
+        }
+
+        const formatCoord = (str, isLat) => {
+            if (!str) return 0;
+            let s = str.replace(/-/g, "");
+            let formatted = isLat ? s.charAt(0) + "." + s.slice(1) : s.slice(0, 3) + "." + s.slice(3);
+            return parseFloat(isLat ? "-" + formatted : formatted);
+        };
+
+        return { lat: formatCoord(lRaw, true), lon: formatCoord(loRaw, false) };
+    }
+
+    // Fungsi fetch utama (Hanya panggil server saat benar-benar butuh)
+    async function fetchData(isManualRefresh = false) {
+        const btn = document.getElementById('btnRefresh');
+        if(isManualRefresh) { btn.innerText = "⏳ Sedang Menarik Data..."; btn.disabled = true; }
+
         const tglMulai = document.getElementById('tglMulai').value;
         const sekarang = new Date();
         currentSheetName = "DATA"; 
 
-        // Ganti sheet berdasarkan bulan dari tglMulai
         if (tglMulai) {
             const dateSel = new Date(tglMulai);
             if (dateSel.getMonth() !== sekarang.getMonth() || dateSel.getFullYear() !== sekarang.getFullYear()) {
-                const namaBulan = ["January", "February", "March", "April", "May", "June", 
-                                   "July", "August", "September", "October", "November", "December"];
+                const namaBulan = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                 currentSheetName = `DATA_${namaBulan[dateSel.getMonth()]}_${dateSel.getFullYear()}`;
             }
         }
 
         try {
-            const response = await fetch(`${GAS_URL}?sheetName=${currentSheetName}`);
-            allData = await response.json();
-            const resGamas = await fetch(`${GAS_URL}?sheetName=db_gamas`);
+            // Fetch Paralel biar makin ngebut
+            const [resSurvey, resGamas] = await Promise.all([
+                fetch(`${GAS_URL}?sheetName=${currentSheetName}`),
+                fetch(`${GAS_URL}?sheetName=db_gamas`)
+            ]);
+            
+            allData = await resSurvey.json();
             allGamasData = await resGamas.json();
             
+            // Update Select Teknisi
             const select = document.getElementById('selectTeknisi');
             const valSebelumnya = select.value;
             const daftarNama = [...new Set(allData.map(item => item.Nama))].filter(n => n && n !== "Unknown");
@@ -162,12 +194,13 @@ function isDateInRange(targetDate, start, end) {
                 opt.value = nama; opt.innerHTML = nama;
                 select.appendChild(opt);
             });
-            
             select.value = valSebelumnya;
-            renderMaps();
+
+            renderMaps(); // Langsung gambar UI
         } catch (e) { 
             console.error("Error Fetch:", e); 
-            renderMaps();
+        } finally {
+            if(isManualRefresh) { btn.innerText = "🔄 Refresh Data"; btn.disabled = false; }
         }
     }
 
@@ -179,44 +212,19 @@ function isDateInRange(targetDate, start, end) {
         let countGamas = 0; 
 
         allGamasData.forEach(g => {
-            // 1. CEK TANGGAL DULU
             if (isDateInRange(g.Tanggal, tglMulai, tglSelesai)) {
-                
-                // --- INI KUNCINYA MAS ECKY ---
-                // Hitung dulu barisnya, tidak peduli koordinatnya benar atau salah
                 countGamas++; 
 
-                // 2. LOGIKA PROSES KOORDINAT (Hanya untuk gambar di peta)
-                let raw = String(g.Lat || g.Latitude || "") + String(g.Lon || g.Longitude || "");
-                let numbersOnly = raw.replace(/[^0-9-]/g, ""); 
-                
-                let latRaw, lonRaw;
-                if (numbersOnly.includes("113")) {
-                    [latRaw, lonRaw] = numbersOnly.split("113");
-                    lonRaw = "113" + lonRaw;
-                } else if (numbersOnly.includes("112")) {
-                    [latRaw, lonRaw] = numbersOnly.split("112");
-                    lonRaw = "112" + lonRaw;
-                }
+                // Pakai fungsi helper yang baru
+                const pos = cleanGamasCoord(g.Lat || g.Latitude, g.Lon || g.Longitude);
 
-                const formatCoord = (str, isLat) => {
-                    if (!str) return 0;
-                    let s = str.replace(/-/g, "");
-                    let formatted = isLat ? s.charAt(0) + "." + s.slice(1) : s.slice(0, 3) + "." + s.slice(3);
-                    return parseFloat(isLat ? "-" + formatted : formatted);
-                };
-
-                let lat = formatCoord(latRaw, true);
-                let lon = formatCoord(lonRaw, false);
-
-                // Jika koordinat valid, gambar markernya
-                if (!isNaN(lat) && !isNaN(lon) && lat !== 0) {
+                if (!isNaN(pos.lat) && !isNaN(pos.lon) && pos.lat !== 0) {
                     const linkEvidence = g.Link_Evidence || g.Link || g.Photo || "#";
                     const tombolEvidence = linkEvidence !== "#" 
-                        ? `<a href="${linkEvidence}" target="_blank" class="btn-view" style="background:#d32f2f; color:white; padding:8px; border-radius:5px; text-decoration:none; display:block; margin-top:10px; text-align:center;">📸 Cek Foto Gamas</a>`
+                        ? `<a href="${linkEvidence}" target="_blank" class="btn-view" style="background:#d32f2f;">📸 Cek Foto Gamas</a>`
                         : `<p style="color:gray; font-size:10px; margin-top:10px;">(Foto tidak tersedia)</p>`;
 
-                    L.marker([lat, lon], {
+                    L.marker([pos.lat, pos.lon], {
                         icon: L.divIcon({
                             html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
                             className: 'gamas-marker',
@@ -228,6 +236,7 @@ function isDateInRange(targetDate, start, end) {
                             <hr style="margin:5px 0">
                             <div style="text-align:left; font-size:11px; line-height:1.5;">
                                 <b>Tiket:</b> ${g.Tiket || '-'}<br>
+                                <b>Definisi:</b> ${g.Definisi || '-'}<br>
                                 <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
                                 <b>Tanggal:</b> ${new Date(g.Tanggal).toLocaleDateString('id-ID')}
                             </div>
@@ -238,8 +247,7 @@ function isDateInRange(targetDate, start, end) {
             }
         });
 
-        // UPDATE STATISTIK (Pasti muncul 14 kalau di Excel ada 14 baris sesuai tanggal)
-        document.getElementById('totalGamas').innerHTML = `<div style="color:red;">💥 ${countGamas} Gamas</div>`;
+        document.getElementById('totalGamas').innerHTML = `<div style="color:red;">💥 ${countGamas} Gamas</div><div style="font-size:9px; color:#999;">TOTAL GANGGUAN</div>`;
     }
 
     function renderMaps() {
@@ -287,8 +295,8 @@ function isDateInRange(targetDate, start, end) {
             }
         });
 
-        document.getElementById('jarakTempuh').innerHTML = `<div>📍 ${totalJarak.toFixed(2)} KM</div>`;
-        document.getElementById('totalLaporan').innerHTML = `<div>📸 ${totalLaporan} Foto Survey</div>`;
+        document.getElementById('jarakTempuh').innerHTML = `<div style="color:#0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="font-size:9px; color:#999;">JARAK TEMPUH</div>`;
+        document.getElementById('totalLaporan').innerHTML = `<div style="color:#28a745;">📸 ${totalLaporan} Laporan</div><div style="font-size:9px; color:#999;">FOTO SURVEY</div>`;
         
         if (filtered.length > 0) {
             const combinedBounds = L.featureGroup([polylineGroup, markerGroup, gamasGroup]).getBounds();
@@ -296,13 +304,19 @@ function isDateInRange(targetDate, start, end) {
         }
     }
 
-    // Default Hari Ini
+    // Eksekusi Awal
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('tglMulai').value = today;
     document.getElementById('tglSelesai').value = today;
 
-    fetchData();
-    setInterval(() => { if (currentSheetName === "DATA") fetchData(); }, 60000); 
+    fetchData(); // Tarik data pas baru buka
+
+    // UPGRADE 3: Smart Interval (Cuma narik data kalau layarnya lagi dilihat)
+    setInterval(() => { 
+        if (currentSheetName === "DATA" && document.visibilityState === 'visible') {
+            fetchData(); 
+        }
+    }, 60000); 
 </script>
 </body>
 </html>
