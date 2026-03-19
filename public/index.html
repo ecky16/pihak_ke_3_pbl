@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Monitoring Survey & Gamas TA PROBOLINGGO</title>
+    <title>Dashboard Analitik Survey & Gamas - SA PROBOLINGGO</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
@@ -30,51 +30,46 @@
             gap: 10px;
         }
 
-        .logo-ta {
-            height: 70px; 
-            width: auto;
-            object-fit: contain;
-        }
+        .logo-ta { height: 60px; width: auto; object-fit: contain; }
 
         #map { flex-grow: 1; width: 100%; height: 100vh; background: #e5e3df; }
 
         .stats-box { 
             background: #fff; 
-            padding: 8px 15px; 
+            padding: 8px 12px; 
             border-radius: 8px; 
             border: 1px solid #eee;
             font-weight: 600; 
-            font-size: 14px;
+            font-size: 13px;
             color: #333;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            min-width: 120px;
+            min-width: 100px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
 
+        .label-range { font-size: 11px; font-weight: bold; color: #666; margin-bottom: 2px; }
+
         select, input { 
-            padding: 10px; 
+            padding: 8px; 
             border-radius: 6px; 
             border: 1px solid #ccd0d5; 
             background: white;
-            outline: none;
+            font-size: 13px;
         }
 
         button { 
-            padding: 10px 20px; 
+            padding: 8px 15px; 
             background: #0084ff; 
             color: white; 
             border: none; 
             border-radius: 6px; 
             font-weight: bold;
             cursor: pointer; 
-            transition: 0.3s;
+            transition: 0.2s;
         }
 
         button:hover { background: #0073e6; }
 
-        .custom-popup .leaflet-popup-content-wrapper { border-radius: 12px; padding: 5px; }
-        
         .btn-view {
             display: block;
             text-align: center;
@@ -84,7 +79,7 @@
             border-radius: 6px;
             text-decoration: none;
             margin-top: 10px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
         }
     </style>
@@ -92,20 +87,37 @@
 <body>
 
 <div id="controls">
-    <input type="date" id="selectTanggal" onchange="fetchData()">
+    <div style="display: flex; flex-direction: column;">
+        <span class="label-range">DARI TANGGAL:</span>
+        <input type="date" id="tglMulai" onchange="fetchData()">
+    </div>
+    <div style="display: flex; flex-direction: column;">
+        <span class="label-range">SAMPAI TANGGAL:</span>
+        <input type="date" id="tglSelesai" onchange="fetchData()">
+    </div>
 
-    <select id="selectTeknisi" onchange="renderMaps()">
-        <option value="">-- Semua Teknisi --</option>
-    </select>
-    
-    <button onclick="fetchData()">🔄 Refresh</button>
-    
-    <div class="stats-box" id="jarakTempuh">
-        <div>📍 0 KM</div>
+    <div style="display: flex; flex-direction: column;">
+        <span class="label-range">PILIH TEKNISI:</span>
+        <select id="selectTeknisi" onchange="renderMaps()">
+            <option value="">-- Semua Teknisi --</option>
+        </select>
     </div>
     
-    <div class="stats-box" id="totalLaporan">
-        <div>📸 0 Foto</div>
+    <button onclick="fetchData()" style="margin-top: 12px;">🔄 Refresh</button>
+    
+    <div class="stats-box" id="jarakTempuh" style="margin-top: 12px;">
+        <div style="color: #0084ff;">📍 0.00 KM</div>
+        <div style="font-size: 9px; color: #999;">JARAK TEMPUH</div>
+    </div>
+    
+    <div class="stats-box" id="totalLaporan" style="margin-top: 12px;">
+        <div style="color: #28a745;">📸 0 Laporan</div>
+        <div style="font-size: 9px; color: #999;">FOTO SURVEY</div>
+    </div>
+
+    <div class="stats-box" id="statGamas" style="margin-top: 12px; border-left: 4px solid #d32f2f;">
+        <div style="color: #d32f2f;">💥 0 Gamas</div>
+        <div style="font-size: 9px; color: #999;">TOTAL GANGGUAN</div>
     </div>
 
     <div class="brand-container">
@@ -120,21 +132,21 @@
 <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
-    let map = L.map('map').setView([-7.6417, 112.9067], 13);
+    // Inisialisasi Map (Probolinggo/Pasuruan Area)
+    let map = L.map('map').setView([-7.6417, 112.9067], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© Mas Ecky TA' }).addTo(map);
 
     let allData = [];
-    let allGamasData = []; // Variable global simpan data gamas
-    let currentSheetName = "DATA";
+    let allGamasData = [];
     
     let polylineGroup = L.featureGroup().addTo(map);
     let markerGroup = L.featureGroup().addTo(map);
     let gamasGroup = L.featureGroup().addTo(map);
 
     const overlayMaps = {
-        "Garis Jalan Teknisi": polylineGroup,
-        "Foto Survey Teknisi": markerGroup,
-        "History Gamas": gamasGroup
+        "Jalur Teknisi (Biru)": polylineGroup,
+        "Marker Survey": markerGroup,
+        "Titik Gamas (Api)": gamasGroup
     };
     L.control.layers(null, overlayMaps, {collapsed: false}).addTo(map);
 
@@ -147,28 +159,20 @@
     }
 
     async function fetchData() {
-        const tanggalInput = document.getElementById('selectTanggal').value;
-        const sekarang = new Date();
-        currentSheetName = "DATA"; 
-
-        if (tanggalInput) {
-            const dateSel = new Date(tanggalInput);
-            if (dateSel.getMonth() !== sekarang.getMonth() || dateSel.getFullYear() !== sekarang.getFullYear()) {
-                const namaBulan = ["January", "February", "March", "April", "May", "June", 
-                                   "July", "August", "September", "October", "November", "December"];
-                currentSheetName = `DATA_${namaBulan[dateSel.getMonth()]}_${dateSel.getFullYear()}`;
-            }
-        }
+        const tglMulai = document.getElementById('tglMulai').value;
+        const tglSelesai = document.getElementById('tglSelesai').value;
+        
+        // Default ke tab DATA (bulan berjalan)
+        let sheetName = "DATA";
 
         try {
-            // 1. Ambil Data Tracking
-            const response = await fetch(`${GAS_URL}?sheetName=${currentSheetName}`);
+            const response = await fetch(`${GAS_URL}?sheetName=${sheetName}`);
             allData = await response.json();
             
-            // 2. Ambil Data Gamas
             const resGamas = await fetch(`${GAS_URL}?sheetName=db_gamas`);
             allGamasData = await resGamas.json();
             
+            // Update Dropdown Teknisi
             const select = document.getElementById('selectTeknisi');
             const valSebelumnya = select.value;
             const daftarNama = [...new Set(allData.map(item => item.Nama))].filter(n => n && n !== "Unknown");
@@ -179,87 +183,83 @@
                 opt.value = nama; opt.innerHTML = nama;
                 select.appendChild(opt);
             });
-            
             select.value = valSebelumnya;
+
             renderMaps();
         } catch (e) { 
-            console.error("Error Fetch:", e); 
-            renderMaps();
+            console.error("Fetch Error:", e);
         }
+    }
+
+    function isDateInRange(targetDate, start, end) {
+        if (!targetDate) return false;
+        const d = new Date(targetDate).toISOString().split('T')[0];
+        if (!start && !end) return true; // Tampilkan semua jika tgl kosong
+        if (start && !end) return d >= start;
+        if (!start && end) return d <= end;
+        return d >= start && d <= end;
     }
 
     function renderGamasPoints() {
-        const tanggalSel = document.getElementById('selectTanggal').value;
+        const tglMulai = document.getElementById('tglMulai').value;
+        const tglSelesai = document.getElementById('tglSelesai').value;
+        
         gamasGroup.clearLayers();
+        let countGamas = 0;
 
-        let filteredGamas = allGamasData;
-        if (tanggalSel) {
-            filteredGamas = allGamasData.filter(g => {
-                if (!g.Tanggal) return false;
-                // Format YYYY-MM-DD
-                const tglGamas = new Date(g.Tanggal).toISOString().split('T')[0];
-                return tglGamas === tanggalSel;
-            });
-        }
+        allGamasData.forEach(g => {
+            if (isDateInRange(g.Tanggal, tglMulai, tglSelesai)) {
+                let raw = String(g.Lat || g.Latitude || "") + String(g.Lon || g.Longitude || "");
+                let numbersOnly = raw.replace(/[^0-9-]/g, ""); 
+                
+                let latRaw, lonRaw;
+                if (numbersOnly.includes("113")) {
+                    [latRaw, lonRaw] = numbersOnly.split("113");
+                    lonRaw = "113" + lonRaw;
+                } else if (numbersOnly.includes("112")) {
+                    [latRaw, lonRaw] = numbersOnly.split("112");
+                    lonRaw = "112" + lonRaw;
+                }
 
-        filteredGamas.forEach(g => {
-            let raw = String(g.Lat || g.Latitude || "") + String(g.Lon || g.Longitude || "");
-            let numbersOnly = raw.replace(/[^0-9-]/g, ""); 
-            
-            let latRaw, lonRaw;
-            if (numbersOnly.includes("113")) {
-                [latRaw, lonRaw] = numbersOnly.split("113");
-                lonRaw = "113" + lonRaw;
-            } else if (numbersOnly.includes("112")) {
-                [latRaw, lonRaw] = numbersOnly.split("112");
-                lonRaw = "112" + lonRaw;
-            }
+                const formatCoord = (str, isLat) => {
+                    if (!str) return 0;
+                    let s = str.replace(/-/g, "");
+                    let formatted = isLat ? s.charAt(0) + "." + s.slice(1) : s.slice(0, 3) + "." + s.slice(3);
+                    return parseFloat(isLat ? "-" + formatted : formatted);
+                };
 
-            const formatCoord = (str, isLat) => {
-                if (!str) return 0;
-                let s = str.replace(/-/g, "");
-                let formatted = isLat ? s.charAt(0) + "." + s.slice(1) : s.slice(0, 3) + "." + s.slice(3);
-                return parseFloat(isLat ? "-" + formatted : formatted);
-            };
+                let lat = formatCoord(latRaw, true);
+                let lon = formatCoord(lonRaw, false);
 
-            let lat = formatCoord(latRaw, true);
-            let lon = formatCoord(lonRaw, false);
+                if (!isNaN(lat) && !isNaN(lon) && lat !== 0) {
+                    countGamas++;
+                    const iconGamas = L.divIcon({
+                        html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
+                        className: 'gamas-marker',
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15]
+                    });
 
-            if (!isNaN(lat) && !isNaN(lon) && lat !== 0) {
-                const iconGamas = L.divIcon({
-                    html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
-                    className: 'gamas-marker',
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 15]
-                });
-
-                L.marker([lat, lon], {icon: iconGamas})
-                 .addTo(gamasGroup)
-                 .bindPopup(`
-                    <div style="text-align:center;">
-                        <b style="color:red;">💥 SEJARAH GAMAS</b><br>
-                        <b>Tiket:</b> ${g.Tiket || '-'}<br>
-                        <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
-                        <a href="${g.Link_Evidence || '#'}" target="_blank" class="btn-view">📂 Evidence</a>
-                    </div>
-                 `);
+                    L.marker([lat, lon], {icon: iconGamas})
+                     .addTo(gamasGroup)
+                     .bindPopup(`<b>Tiket:</b> ${g.Tiket}<br><b>Penyebab:</b> ${g.Penyebab}`);
+                }
             }
         });
+        document.getElementById('statGamas').innerHTML = `<div style="color: #d32f2f;">💥 ${countGamas} Gamas</div><div style="font-size: 9px; color: #999;">TOTAL GANGGUAN</div>`;
     }
 
     function renderMaps() {
+        const tglMulai = document.getElementById('tglMulai').value;
+        const tglSelesai = document.getElementById('tglSelesai').value;
         const teknisiSel = document.getElementById('selectTeknisi').value;
-        const tanggalSel = document.getElementById('selectTanggal').value;
 
         polylineGroup.clearLayers();
         markerGroup.clearLayers();
-        renderGamasPoints(); // Filter Gamas juga saat render
+        renderGamasPoints();
 
-        let filtered = allData;
+        let filtered = allData.filter(d => isDateInRange(d.Timestamp, tglMulai, tglSelesai));
         if (teknisiSel) filtered = filtered.filter(d => d.Nama === teknisiSel);
-        if (tanggalSel) {
-            filtered = filtered.filter(d => new Date(d.Timestamp).toISOString().split('T')[0] === tanggalSel);
-        }
 
         let totalLaporan = 0;
         let totalJarak = 0;
@@ -269,13 +269,8 @@
             if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
                 totalLaporan++;
                 let lat = d.Latitude, lon = d.Longitude;
-                if (!lat || lat == 0) {
-                    const lastPos = filtered.slice(0, i).reverse().find(r => r.Nama === d.Nama && r.Latitude != 0);
-                    if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
-                }
                 if (lat && lat != 0) {
-                    const popupMsg = `<div style="text-align:center"><b>Temuan ${d.Nama}</b><br><p style="margin:5px 0">${d.Keterangan}</p><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc;">📂 Telegram</a></div>`;
-                    L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg);
+                    L.marker([lat, lon]).addTo(markerGroup).bindPopup(`<b>${d.Nama}</b><br>${d.Keterangan}`);
                 }
             }
 
@@ -288,26 +283,28 @@
         Object.keys(perUser).forEach(nama => {
             const coords = perUser[nama];
             if (coords.length > 1) {
-                const warnaGaris = teknisiSel ? '#007bff' : '#0056b3'; 
-                L.polyline(coords, { color: warnaGaris, weight: 5, opacity: 0.8, lineJoin: 'round' }).addTo(polylineGroup);
-
+                L.polyline(coords, { color: '#007bff', weight: 5, opacity: 0.8 }).addTo(polylineGroup);
                 for (let j = 1; j < coords.length; j++) {
                     totalJarak += calculateDistance(coords[j-1][0], coords[j-1][1], coords[j][0], coords[j][1]);
                 }
             }
         });
 
-        document.getElementById('jarakTempuh').innerHTML = `<div>📍 ${totalJarak.toFixed(2)} KM</div>`;
-        document.getElementById('totalLaporan').innerHTML = `<div>📸 ${totalLaporan} Foto</div>`;
+        document.getElementById('jarakTempuh').innerHTML = `<div style="color: #0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="font-size: 9px; color: #999;">JARAK TEMPUH</div>`;
+        document.getElementById('totalLaporan').innerHTML = `<div style="color: #28a745;">📸 ${totalLaporan} Laporan</div><div style="font-size: 9px; color: #999;">FOTO SURVEY</div>`;
         
         if (filtered.length > 0) {
-            const combinedBounds = L.featureGroup([polylineGroup, markerGroup]).getBounds();
-            if (combinedBounds.isValid()) map.fitBounds(combinedBounds, {padding: [50, 50]});
+            const bounds = L.featureGroup([polylineGroup, markerGroup, gamasGroup]).getBounds();
+            if (bounds.isValid()) map.fitBounds(bounds, {padding: [50, 50]});
         }
     }
 
+    // Set default tanggal hari ini
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('tglMulai').value = today;
+    document.getElementById('tglSelesai').value = today;
+
     fetchData();
-    setInterval(() => { if (currentSheetName === "DATA") fetchData(); }, 60000); 
 </script>
 </body>
 </html>
