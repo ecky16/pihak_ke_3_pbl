@@ -214,47 +214,63 @@
 
     // --- FUNGSI TAMPILKAN TITIK GAMAS ---
     async function fetchGamasData() {
-        try {
-            const res = await fetch(`${GAS_URL}?sheetName=db_gamas`);
-            const gamasData = await res.json();
-            
-            if (!Array.isArray(gamasData)) return; // Cegah error kalau data kosong
+    try {
+        const res = await fetch(`${GAS_URL}?sheetName=db_gamas`);
+        const gamasData = await res.json();
+        
+        if (!Array.isArray(gamasData)) return;
 
-            gamasGroup.clearLayers();
+        gamasGroup.clearLayers();
 
-            gamasData.forEach(g => {
-                // Ambil koordinat (cek Lat atau Latitude)
-                let lat = g.Lat || g.Latitude;
-                let lon = g.Lon || g.Longitude;
-
-                if (lat && lon && lat != 0) {
-                    // Pakai Emoji Api atau Tanda Seru
-                    const iconGamas = L.divIcon({
-                        html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
-                        className: 'gamas-marker',
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 15]
-                    });
-
-                    L.marker([lat, lon], {icon: iconGamas})
-                     .addTo(gamasGroup)
-                     .bindPopup(`
-                        <div style="text-align:center; min-width:150px;">
-                            <b style="color:red; font-size:14px;">💥 SEJARAH GAMAS</b><br>
-                            <hr style="margin: 5px 0;">
-                            <b>Tiket:</b> ${g.Tiket || '-'}<br>
-                            <b>Definisi:</b> ${g.Definisi || '-'}<br>
-                            <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
-                            <small>${g.Tanggal || ''}</small><br>
-                            <p style="font-size:11px; color:#666;">${g.Keterangan || ''}</p>
-                            <a href="${g.Link_Evidence || '#'}" target="_blank" class="btn-view">📂 Lihat Evidence</a>
-                        </div>
-                     `);
+        gamasData.forEach(g => {
+            // --- JURUS PEMBERSIH KOORDINAT MAS ECKY ---
+            const cleanCoord = (val) => {
+                if (!val) return 0;
+                let s = String(val).trim();
+                // Buang semua karakter kecuali angka, minus (-), dan titik (.)
+                s = s.replace(/[^0-9.-]/g, "");
+                
+                // Kalau titiknya banyak (misal -7.915.531), kita cuma ambil titik pertama
+                let parts = s.split('.');
+                if (parts.length > 2) {
+                    s = parts[0] + "." + parts.slice(1).join("");
                 }
-            });
-        } catch (e) { 
-            console.error("Gamas Error:", e); 
-        }
+                return parseFloat(s);
+            };
+
+            let lat = cleanCoord(g.Lat || g.Latitude);
+            let lon = cleanCoord(g.Lon || g.Longitude);
+
+            // Validasi: Koordinat Indonesia (Lat -6 s/d -9, Lon 100 s/d 120)
+            // Biar kalau ada data ngaco gak mendarat di kutub utara
+            if (lat !== 0 && lon !== 0 && !isNaN(lat)) {
+                const iconGamas = L.divIcon({
+                    html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
+                    className: 'gamas-marker',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+
+                L.marker([lat, lon], {icon: iconGamas})
+                 .addTo(gamasGroup)
+                 .bindPopup(`
+                    <div style="text-align:center; min-width:150px;">
+                        <b style="color:red; font-size:14px;">💥 SEJARAH GAMAS</b><br>
+                        <hr style="margin: 5px 0;">
+                        <b>Tiket:</b> ${g.Tiket || '-'}<br>
+                        <b>Definisi:</b> ${g.Definisi || '-'}<br>
+                        <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
+                        <small>${g.Tanggal || ''}</small><br>
+                        <p style="font-size:11px; color:#666;">${g.Keterangan || ''}</p>
+                        <a href="${g.Link_Evidence || '#'}" target="_blank" class="btn-view" style="background:#d32f2f; color:white; display:block; padding:8px; border-radius:6px; text-decoration:none; margin-top:5px; font-weight:bold;">📂 Lihat Evidence</a>
+                    </div>
+                 `);
+            }
+        });
+    } catch (e) { 
+        console.error("Gamas Error:", e); 
+    }
+}
     }
 
     function renderMaps() {
