@@ -1,7 +1,13 @@
 {
-  "name": "bot-survey-teknisi",
-  "version": "1.0.0",
-  "dependencies": {
-    "axios": "^1.6.0"
-  }
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/gamas.html",
+      "destination": "/public/gamas.html"
+    }
+  ]
 }
