@@ -193,17 +193,35 @@
 
                 if (!isNaN(lat) && !isNaN(lon) && lat !== 0) {
                     countGamas++;
+                    
+                    // CEK APAKAH ADA LINK FOTO/EVIDENCE
+                    // Mas sesuaikan nama kolomnya di sini (misal: g.Link_Evidence atau g.Photo)
+                    const linkEvidence = g.Link_Evidence || g.Link || g.Photo || "#";
+                    const tombolEvidence = linkEvidence !== "#" 
+                        ? `<a href="${linkEvidence}" target="_blank" class="btn-view" style="background:#d32f2f; margin-top:10px;">📸 Cek Foto Gamas</a>`
+                        : `<p style="color:gray; font-size:10px;">(Tidak ada foto)</p>`;
+
                     L.marker([lat, lon], {
                         icon: L.divIcon({
                             html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
                             className: 'gamas-marker',
                             iconSize: [30, 30], iconAnchor: [15, 15]
                         })
-                    }).addTo(gamasGroup).bindPopup(`<b>Tiket:</b> ${g.Tiket || '-'}<br><b>Penyebab:</b> ${g.Penyebab || '-'}`);
+                    }).addTo(gamasGroup).bindPopup(`
+                        <div style="text-align:center; min-width:150px;">
+                            <b style="color:red;">💥 DATA GAMAS</b><br>
+                            <hr style="margin:5px 0">
+                            <div style="text-align:left; font-size:11px;">
+                                <b>Tiket:</b> ${g.Tiket || '-'}<br>
+                                <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
+                                <b>PIC:</b> ${g.PIC || '-'}
+                            </div>
+                            ${tombolEvidence}
+                        </div>
+                    `);
                 }
             }
         });
-        // UPDATE TOTAL GAMAS DI STATS BOX
         document.getElementById('totalGamas').innerHTML = `<div style="color:red;">💥 ${countGamas} Gamas</div>`;
     }
 
