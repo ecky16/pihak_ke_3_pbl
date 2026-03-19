@@ -167,14 +167,17 @@
         const tglSelesai = document.getElementById('tglSelesai').value;
         
         gamasGroup.clearLayers();
-        let countGamas = 0; // Reset hitungan
+        let countGamas = 0; 
 
         allGamasData.forEach(g => {
-            // 1. CEK TANGGAL DULU (Hitungan statistik berpatokan pada baris Excel)
+            // 1. CEK TANGGAL DULU
             if (isDateInRange(g.Tanggal, tglMulai, tglSelesai)) {
-                countGamas++; // SETIAP BARIS YANG MASUK TANGGAL LANGSUNG DIHITUNG
+                
+                // --- INI KUNCINYA MAS ECKY ---
+                // Hitung dulu barisnya, tidak peduli koordinatnya benar atau salah
+                countGamas++; 
 
-                // 2. LOGIKA GAMBAR MARKER (Baru diproses setelah dihitung)
+                // 2. LOGIKA PROSES KOORDINAT (Hanya untuk gambar di peta)
                 let raw = String(g.Lat || g.Latitude || "") + String(g.Lon || g.Longitude || "");
                 let numbersOnly = raw.replace(/[^0-9-]/g, ""); 
                 
@@ -197,7 +200,7 @@
                 let lat = formatCoord(latRaw, true);
                 let lon = formatCoord(lonRaw, false);
 
-                // Jika koordinat valid, pasang marker di peta
+                // Jika koordinat valid, gambar markernya
                 if (!isNaN(lat) && !isNaN(lon) && lat !== 0) {
                     const linkEvidence = g.Link_Evidence || g.Link || g.Photo || "#";
                     const tombolEvidence = linkEvidence !== "#" 
@@ -216,7 +219,6 @@
                             <hr style="margin:5px 0">
                             <div style="text-align:left; font-size:11px; line-height:1.5;">
                                 <b>Tiket:</b> ${g.Tiket || '-'}<br>
-                                <b>Definisi:</b> ${g.Definisi || '-'}<br>
                                 <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
                                 <b>Tanggal:</b> ${new Date(g.Tanggal).toLocaleDateString('id-ID')}
                             </div>
@@ -227,7 +229,7 @@
             }
         });
 
-        // UPDATE STATISTIK (Angka ini sekarang PASTI sama dengan jumlah baris di Excel)
+        // UPDATE STATISTIK (Pasti muncul 14 kalau di Excel ada 14 baris sesuai tanggal)
         document.getElementById('totalGamas').innerHTML = `<div style="color:red;">💥 ${countGamas} Gamas</div>`;
     }
 
