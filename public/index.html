@@ -217,33 +217,39 @@
     try {
         const res = await fetch(`${GAS_URL}?sheetName=db_gamas`);
         const gamasData = await res.json();
-        
-        if (!Array.isArray(gamasData)) return;
-
         gamasGroup.clearLayers();
 
         gamasData.forEach(g => {
-            // --- JURUS PEMBERSIH KOORDINAT MAS ECKY ---
-            const cleanCoord = (val) => {
-                if (!val) return 0;
-                let s = String(val).trim();
-                // Buang semua karakter kecuali angka, minus (-), dan titik (.)
-                s = s.replace(/[^0-9.-]/g, "");
-                
-                // Kalau titiknya banyak (misal -7.915.531), kita cuma ambil titik pertama
-                let parts = s.split('.');
-                if (parts.length > 2) {
-                    s = parts[0] + "." + parts.slice(1).join("");
-                }
-                return parseFloat(s);
+            // Gabungkan dulu kalau datanya kepisah atau dempet
+            let raw = String(g.Lat || g.Latitude || "") + String(g.Lon || g.Longitude || "");
+            
+            // 1. Bersihkan semua titik kecuali di awal angka
+            // Kita pecah manual karena datanya "ajaib" (-7.915.531113.251.413)
+            let numbersOnly = raw.replace(/[^0-9-]/g, ""); // Ambil angka dan minus saja
+            
+            // 2. Logika Pemisahan Otomatis (Cari angka 113 atau 112 sebagai batas Longitude)
+            let latRaw, lonRaw;
+            if (numbersOnly.includes("113")) {
+                [latRaw, lonRaw] = numbersOnly.split("113");
+                lonRaw = "113" + lonRaw;
+            } else if (numbersOnly.includes("112")) {
+                [latRaw, lonRaw] = numbersOnly.split("112");
+                lonRaw = "112" + lonRaw;
+            }
+
+            // 3. Masukkan Titik Desimal di posisi yang benar (setelah angka ke-1 atau ke-3)
+            const formatCoord = (str, isLat) => {
+                if (!str) return 0;
+                let s = str.replace(/-/g, ""); // Hilangkan minus dulu
+                // Latitude: X.XXXXX, Longitude: XXX.XXXXX
+                let formatted = isLat ? s.charAt(0) + "." + s.slice(1) : s.slice(0, 3) + "." + s.slice(3);
+                return parseFloat(isLat ? "-" + formatted : formatted);
             };
 
-            let lat = cleanCoord(g.Lat || g.Latitude);
-            let lon = cleanCoord(g.Lon || g.Longitude);
+            let lat = formatCoord(latRaw, true);
+            let lon = formatCoord(lonRaw, false);
 
-            // Validasi: Koordinat Indonesia (Lat -6 s/d -9, Lon 100 s/d 120)
-            // Biar kalau ada data ngaco gak mendarat di kutub utara
-            if (lat !== 0 && lon !== 0 && !isNaN(lat)) {
+            if (!isNaN(lat) && !isNaN(lon) && lat < -5 && lat > -9) {
                 const iconGamas = L.divIcon({
                     html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
                     className: 'gamas-marker',
@@ -254,22 +260,18 @@
                 L.marker([lat, lon], {icon: iconGamas})
                  .addTo(gamasGroup)
                  .bindPopup(`
-                    <div style="text-align:center; min-width:150px;">
-                        <b style="color:red; font-size:14px;">💥 SEJARAH GAMAS</b><br>
-                        <hr style="margin: 5px 0;">
-                        <b>Tiket:</b> ${g.Tiket || '-'}<br>
-                        <b>Definisi:</b> ${g.Definisi || '-'}<br>
-                        <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
-                        <small>${g.Tanggal || ''}</small><br>
-                        <p style="font-size:11px; color:#666;">${g.Keterangan || ''}</p>
-                        <a href="${g.Link_Evidence || '#'}" target="_blank" class="btn-view" style="background:#d32f2f; color:white; display:block; padding:8px; border-radius:6px; text-decoration:none; margin-top:5px; font-weight:bold;">📂 Lihat Evidence</a>
+                    <div style="text-align:center;">
+                        <b style="color:red;">💥 SEJARAH GAMAS</b><br>
+                        <b>Tiket:</b> ${g.Tiket}<br>
+                        <b>Penyebab:</b> ${g.Penyebab}<br>
+                        <hr>
+                        <small>Data Asli: ${raw}</small>
                     </div>
                  `);
             }
         });
-    } catch (e) { 
-        console.error("Gamas Error:", e); 
-    }
+    } catch (e) { console.error("Error Gamas:", e); }
+}
 }
     }
 
