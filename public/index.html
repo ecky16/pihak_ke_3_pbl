@@ -86,7 +86,8 @@
 <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
-    let map = L.map('map').setView([-7.6417, 112.9067], 13);
+    // Pakai koordinat pusat Kota Probolinggo:
+let map = L.map('map').setView([-7.7569, 113.2115], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© Mas Ecky TA' }).addTo(map);
 
     let allData = [];
