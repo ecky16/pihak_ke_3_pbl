@@ -11,6 +11,8 @@
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
         input, select, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
         button { width: 100%; padding: 12px; background: #d32f2f; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        button:disabled { background: #999; }
+        #status { font-size: 12px; color: blue; text-align: center; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
@@ -47,33 +49,73 @@
         <label>Keterangan Tambahan</label>
         <textarea id="keterangan" rows="3"></textarea>
     </div>
-    <p style="font-size: 11px; color: #666;">*Note: Evidence foto silakan kirim langsung ke Channel setelah mengisi form ini.</p>
-    <button onclick="sendData()">SUBMIT DATA GAMAS</button>
+    <div class="form-group">
+        <label>Evidence Foto (Maks 10)</label>
+        <input type="file" id="fotoInput" accept="image/*" multiple>
+    </div>
+
+    <div id="status">⏳ Sedang memproses...</div>
+    <button id="btnSubmit" onclick="sendAllData()">SUBMIT DATA GAMAS</button>
 
     <script>
         const tg = window.Telegram.WebApp;
+        const BOT_TOKEN = "8648713313:AAHOW_7a8ga1Rqe-d2HHhU6EVtJPrti3PRs"; // Token bot Mas Ecky
+        const CHANNEL_ID = "-1003759185457"; // ID Channel
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
+
         tg.expand();
 
-        async function sendData() {
-            const data = {
-                action: 'submit_gamas',
-                tanggal: document.getElementById('tanggal').value,
-                tiket: document.getElementById('tiket').value,
-                definisi: document.getElementById('definisi').value,
-                penyebab: document.getElementById('penyebab').value,
-                lat: document.getElementById('lat').value,
-                lon: document.getElementById('lon').value,
-                keterangan: document.getElementById('keterangan').value,
-                albumUrl: "Cek di Channel"
-            };
+        async function sendAllData() {
+            const btn = document.getElementById('btnSubmit');
+            const statusDiv = document.getElementById('status');
+            const files = document.getElementById('fotoInput').files;
+            
+            if (!document.getElementById('tiket').value) return alert("Nomor Tiket wajib diisi!");
+            
+            btn.disabled = true;
+            statusDiv.style.display = "block";
 
-            // Kirim ke GAS
-            await fetch('https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec', {
-                method: 'POST',
-                body: JSON.stringify(data)
-            });
+            try {
+                // 1. KIRIM DATA TEKS KE GAS
+                statusDiv.innerText = "⏳ Menyimpan data ke Spreadsheet...";
+                const data = {
+                    action: 'submit_gamas',
+                    tanggal: document.getElementById('tanggal').value,
+                    tiket: document.getElementById('tiket').value,
+                    definisi: document.getElementById('definisi').value,
+                    penyebab: document.getElementById('penyebab').value,
+                    lat: document.getElementById('lat').value,
+                    lon: document.getElementById('lon').value,
+                    keterangan: document.getElementById('keterangan').value,
+                    albumUrl: "Cek di Channel"
+                };
 
-            tg.close();
+                await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(data) });
+
+                // 2. KIRIM FOTO KE TELEGRAM CHANNEL (SATU PER SATU)
+                if (files.length > 0) {
+                    for (let i = 0; i < files.length; i++) {
+                        statusDiv.innerText = `⏳ Mengirim foto ke-${i+1} dari ${files.length}...`;
+                        const formData = new FormData();
+                        formData.append('chat_id', CHANNEL_ID);
+                        formData.append('photo', files[i]);
+                        formData.append('caption', `⚠️ EVIDENCE GAMAS\nTiket: ${data.tiket}\nLokasi: ${data.lat}, ${data.lon}`);
+
+                        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                    }
+                }
+
+                statusDiv.innerText = "✅ Berhasil Terkirim!";
+                setTimeout(() => tg.close(), 1500);
+
+            } catch (e) {
+                alert("Error: " + e.message);
+                btn.disabled = false;
+                statusDiv.style.display = "none";
+            }
         }
     </script>
 </body>
