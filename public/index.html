@@ -47,37 +47,31 @@
 <body>
 
 <div id="controls">
-    <div style="display: flex; flex-direction: column;">
-        <span class="label-range">DARI TANGGAL:</span>
-        <input type="date" id="tglMulai">
+    <div style="display:flex; flex-direction:column; gap:2px;">
+        <small style="font-size:9px; font-weight:bold; color:#666;">DARI TANGGAL</small>
+        <input type="date" id="tglMulai" onchange="fetchData()">
     </div>
-    <div style="display: flex; flex-direction: column;">
-        <span class="label-range">SAMPAI TANGGAL:</span>
-        <input type="date" id="tglSelesai">
-    </div>
-
-    <div style="display: flex; flex-direction: column;">
-        <span class="label-range">PILIH TEKNISI:</span>
-        <select id="selectTeknisi" onchange="renderMaps()">
-            <option value="">-- Semua Teknisi --</option>
-        </select>
-    </div>
-    
-    <button onclick="fetchData()" style="margin-top: 12px;">🔄 Terapkan Filter</button>
-    
-    <div class="stats-box" id="jarakTempuh" style="margin-top: 12px;">
-        <div style="color: #0084ff;">📍 0.00 KM</div>
-        <div style="font-size: 9px; color: #999;">JARAK TEMPUH</div>
-    </div>
-    
-    <div class="stats-box" id="totalLaporan" style="margin-top: 12px;">
-        <div style="color: #28a745;">📸 0 Laporan</div>
-        <div style="font-size: 9px; color: #999;">FOTO SURVEY</div>
+    <div style="display:flex; flex-direction:column; gap:2px;">
+        <small style="font-size:9px; font-weight:bold; color:#666;">SAMPAI TANGGAL</small>
+        <input type="date" id="tglSelesai" onchange="fetchData()">
     </div>
 
-    <div class="stats-box" id="statGamas" style="margin-top: 12px; border-left: 4px solid #d32f2f;">
-        <div style="color: #d32f2f;">💥 0 Gamas</div>
-        <div style="font-size: 9px; color: #999;">TOTAL GANGGUAN</div>
+    <select id="selectTeknisi" onchange="renderMaps()">
+        <option value="">-- Semua Teknisi --</option>
+    </select>
+    
+    <button onclick="fetchData()">🔄 Refresh</button>
+    
+    <div class="stats-box" id="jarakTempuh">
+        <div>📍 0 KM</div>
+    </div>
+    
+    <div class="stats-box" id="totalLaporan">
+        <div>📸 0 Foto</div>
+    </div>
+
+    <div class="stats-box" id="totalGamas" style="border-left: 4px solid red;">
+        <div style="color:red;">💥 0 Gamas</div>
     </div>
 
     <div class="brand-container">
@@ -92,20 +86,21 @@
 <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
-    let map = L.map('map').setView([-7.6417, 112.9067], 12);
+    let map = L.map('map').setView([-7.6417, 112.9067], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© Mas Ecky TA' }).addTo(map);
 
     let allData = [];
     let allGamasData = [];
+    let currentSheetName = "DATA";
     
     let polylineGroup = L.featureGroup().addTo(map);
     let markerGroup = L.featureGroup().addTo(map);
     let gamasGroup = L.featureGroup().addTo(map);
 
     const overlayMaps = {
-        "Jalur Teknisi (Biru)": polylineGroup,
-        "Marker Survey": markerGroup,
-        "Titik Gamas (Api)": gamasGroup
+        "Garis Jalan Teknisi": polylineGroup,
+        "Foto Survey Teknisi": markerGroup,
+        "History Gamas": gamasGroup
     };
     L.control.layers(null, overlayMaps, {collapsed: false}).addTo(map);
 
@@ -117,24 +112,34 @@
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    // Fungsi Filter Tanggal yang Lebih Akurat
+    // LOGIKA FILTER RANGE TANGGAL
     function isDateInRange(targetDate, start, end) {
         if (!targetDate) return false;
-        let d = new Date(targetDate);
-        if (isNaN(d.getTime())) return false;
-        
-        let dStr = d.toISOString().split('T')[0];
+        const d = new Date(targetDate).toISOString().split('T')[0];
         if (!start && !end) return true;
-        if (start && !end) return dStr >= start;
-        if (!start && end) return dStr <= end;
-        return dStr >= start && dStr <= end;
+        if (start && !end) return d >= start;
+        if (!start && end) return d <= end;
+        return d >= start && d <= end;
     }
 
     async function fetchData() {
+        const tglMulai = document.getElementById('tglMulai').value;
+        const sekarang = new Date();
+        currentSheetName = "DATA"; 
+
+        // Ganti sheet berdasarkan bulan dari tglMulai
+        if (tglMulai) {
+            const dateSel = new Date(tglMulai);
+            if (dateSel.getMonth() !== sekarang.getMonth() || dateSel.getFullYear() !== sekarang.getFullYear()) {
+                const namaBulan = ["January", "February", "March", "April", "May", "June", 
+                                   "July", "August", "September", "October", "November", "December"];
+                currentSheetName = `DATA_${namaBulan[dateSel.getMonth()]}_${dateSel.getFullYear()}`;
+            }
+        }
+
         try {
-            const response = await fetch(`${GAS_URL}?sheetName=DATA`);
+            const response = await fetch(`${GAS_URL}?sheetName=${currentSheetName}`);
             allData = await response.json();
-            
             const resGamas = await fetch(`${GAS_URL}?sheetName=db_gamas`);
             allGamasData = await resGamas.json();
             
@@ -148,10 +153,13 @@
                 opt.value = nama; opt.innerHTML = nama;
                 select.appendChild(opt);
             });
+            
             select.value = valSebelumnya;
-
             renderMaps();
-        } catch (e) { console.error("Fetch Error:", e); }
+        } catch (e) { 
+            console.error("Error Fetch:", e); 
+            renderMaps();
+        }
     }
 
     function renderGamasPoints() {
@@ -164,7 +172,6 @@
             if (isDateInRange(g.Tanggal, tglMulai, tglSelesai)) {
                 let raw = String(g.Lat || g.Latitude || "") + String(g.Lon || g.Longitude || "");
                 let numbersOnly = raw.replace(/[^0-9-]/g, ""); 
-                
                 let latRaw, lonRaw;
                 if (numbersOnly.includes("113")) {
                     [latRaw, lonRaw] = numbersOnly.split("113");
@@ -186,29 +193,28 @@
 
                 if (!isNaN(lat) && !isNaN(lon) && lat !== 0) {
                     countGamas++;
-                    const iconGamas = L.divIcon({
-                        html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
-                        className: 'gamas-marker',
-                        iconSize: [30, 30], iconAnchor: [15, 15]
-                    });
-
-                    L.marker([lat, lon], {icon: iconGamas})
-                     .addTo(gamasGroup)
-                     .bindPopup(`<b>Tiket:</b> ${g.Tiket}<br><b>Definisi:</b> ${g.Definisi}<br><b>Penyebab:</b> ${g.Penyebab}`);
+                    L.marker([lat, lon], {
+                        icon: L.divIcon({
+                            html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
+                            className: 'gamas-marker',
+                            iconSize: [30, 30], iconAnchor: [15, 15]
+                        })
+                    }).addTo(gamasGroup).bindPopup(`<b>Tiket:</b> ${g.Tiket || '-'}<br><b>Penyebab:</b> ${g.Penyebab || '-'}`);
                 }
             }
         });
-        document.getElementById('statGamas').innerHTML = `<div style="color: #d32f2f;">💥 ${countGamas} Gamas</div><div style="font-size: 9px; color: #999;">TOTAL GANGGUAN</div>`;
+        // UPDATE TOTAL GAMAS DI STATS BOX
+        document.getElementById('totalGamas').innerHTML = `<div style="color:red;">💥 ${countGamas} Gamas</div>`;
     }
 
     function renderMaps() {
+        const teknisiSel = document.getElementById('selectTeknisi').value;
         const tglMulai = document.getElementById('tglMulai').value;
         const tglSelesai = document.getElementById('tglSelesai').value;
-        const teknisiSel = document.getElementById('selectTeknisi').value;
 
         polylineGroup.clearLayers();
         markerGroup.clearLayers();
-        renderGamasPoints();
+        renderGamasPoints(); 
 
         let filtered = allData.filter(d => isDateInRange(d.Timestamp, tglMulai, tglSelesai));
         if (teknisiSel) filtered = filtered.filter(d => d.Nama === teknisiSel);
@@ -218,47 +224,36 @@
         const perUser = {};
 
         filtered.forEach((d, i) => {
-            // Logika Munculkan Foto Survey
-            if (d.Photo_URL || d.Photo) {
+            if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
                 totalLaporan++;
-                let lat = parseFloat(d.Latitude), lon = parseFloat(d.Longitude);
-                
-                // Jika baris foto tidak ada koordinat, pancing dari data sebelumnya
-                if (!lat || lat === 0) {
+                let lat = d.Latitude, lon = d.Longitude;
+                if (!lat || lat == 0) {
                     const lastPos = filtered.slice(0, i).reverse().find(r => r.Nama === d.Nama && r.Latitude != 0);
-                    if (lastPos) { lat = parseFloat(lastPos.Latitude); lon = parseFloat(lastPos.Longitude); }
+                    if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
                 }
-
                 if (lat && lat != 0) {
-                    const linkFoto = d.Photo_URL || d.Photo;
-                    L.marker([lat, lon]).addTo(markerGroup).bindPopup(`
-                        <div style="text-align:center">
-                            <b>📸 Survey ${d.Nama}</b><br>
-                            <p>${d.Keterangan || '-'}</p>
-                            <a href="${linkFoto}" target="_blank" class="btn-view" style="background:#0088cc;">📂 Buka Telegram</a>
-                        </div>
-                    `);
+                    const popupMsg = `<div style="text-align:center"><b>Temuan ${d.Nama}</b><br><p style="margin:5px 0">${d.Keterangan}</p><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc;">📂 Telegram</a></div>`;
+                    L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg);
                 }
             }
-
             if (d.Latitude && d.Longitude && d.Latitude != 0) {
                 if (!perUser[d.Nama]) perUser[d.Nama] = [];
-                perUser[d.Nama].push([parseFloat(d.Latitude), parseFloat(d.Longitude)]);
+                perUser[d.Nama].push([d.Latitude, d.Longitude]);
             }
         });
 
         Object.keys(perUser).forEach(nama => {
             const coords = perUser[nama];
             if (coords.length > 1) {
-                L.polyline(coords, { color: '#007bff', weight: 5, opacity: 0.8 }).addTo(polylineGroup);
+                L.polyline(coords, { color: teknisiSel ? '#007bff' : '#0056b3', weight: 5, opacity: 0.8, lineJoin: 'round' }).addTo(polylineGroup);
                 for (let j = 1; j < coords.length; j++) {
                     totalJarak += calculateDistance(coords[j-1][0], coords[j-1][1], coords[j][0], coords[j][1]);
                 }
             }
         });
 
-        document.getElementById('jarakTempuh').innerHTML = `<div style="color: #0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="font-size: 9px; color: #999;">JARAK TEMPUH</div>`;
-        document.getElementById('totalLaporan').innerHTML = `<div style="color: #28a745;">📸 ${totalLaporan} Laporan</div><div style="font-size: 9px; color: #999;">FOTO SURVEY</div>`;
+        document.getElementById('jarakTempuh').innerHTML = `<div>📍 ${totalJarak.toFixed(2)} KM</div>`;
+        document.getElementById('totalLaporan').innerHTML = `<div>📸 ${totalLaporan} Foto</div>`;
         
         if (filtered.length > 0) {
             const combinedBounds = L.featureGroup([polylineGroup, markerGroup, gamasGroup]).getBounds();
@@ -266,11 +261,13 @@
         }
     }
 
+    // Default Hari Ini
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('tglMulai').value = today;
     document.getElementById('tglSelesai').value = today;
 
     fetchData();
+    setInterval(() => { if (currentSheetName === "DATA") fetchData(); }, 60000); 
 </script>
 </body>
 </html>
