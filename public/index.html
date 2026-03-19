@@ -87,15 +87,29 @@
 
 <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
+// 1. KITA BUAT 3 PILIHAN KULIT GOOGLE MAPS
+    const googleStreets = L.tileLayer('http://{s}.google.com/vt?lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: '© Google Maps'
+    });
 
-    // Set map ke Probolinggo
-    let map = L.map('map').setView([-7.7569, 113.2115], 13);
-L.tileLayer('http://{s}.google.com/vt?lyrs=m&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    attribution: '© Google Maps - Mas Ecky TA'
-}).addTo(map);
+    const googleSatellite = L.tileLayer('http://{s}.google.com/vt?lyrs=s,h&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: '© Google Satelit'
+    });
+
+    const googleTerrain = L.tileLayer('http://{s}.google.com/vt?lyrs=p&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: '© Google Terrain'
+    });
     
+    // Set map ke Probolinggo
+  let map = L.map('map').setView([-7.7569, 113.2115], 13);
+    googleStreets.addTo(map); 
+
     let allData = [];
     let allGamasData = [];
     let currentSheetName = "DATA";
@@ -104,12 +118,21 @@ L.tileLayer('http://{s}.google.com/vt?lyrs=m&x={x}&y={y}&z={z}', {
     let markerGroup = L.featureGroup().addTo(map);
     let gamasGroup = L.featureGroup().addTo(map);
 
-    const overlayMaps = {
-        "Jalur Survey (Biru)": polylineGroup,
-        "Marker Survey (Foto)": markerGroup,
-        "History Gamas (Api)": gamasGroup
+    // 3. MASUKKAN PILIHANNYA KE DALAM KOTAK KONTROL POJOK KANAN
+    const baseMaps = {
+        "🗺️ Google Maps (Jalan)": googleStreets,
+        "🌍 Google Satelit": googleSatellite,
+        "⛰️ Google Terrain": googleTerrain
     };
-    L.control.layers(null, overlayMaps, {collapsed: false}).addTo(map);
+
+    const overlayMaps = {
+        "🔵 Jalur Survey ": polylineGroup,
+        "📸 Marker Survey ": markerGroup,
+        "💥 History Gamas ": gamasGroup
+    };
+    
+    // Ganti null dengan baseMaps biar muncul tombol cetek-ceteknya
+    L.control.layers(baseMaps, overlayMaps, {collapsed: false}).addTo(map);
 
     function calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371;
