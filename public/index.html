@@ -287,7 +287,7 @@ function isDateInRange(targetDate, start, end) {
         });
 
         document.getElementById('jarakTempuh').innerHTML = `<div>📍 ${totalJarak.toFixed(2)} KM</div>`;
-        document.getElementById('totalLaporan').innerHTML = `<div>📸 ${totalLaporan} Foto</div>`;
+        document.getElementById('totalLaporan').innerHTML = `<div>📸 ${totalLaporan} Foto Survey</div>`;
         
         if (filtered.length > 0) {
             const combinedBounds = L.featureGroup([polylineGroup, markerGroup, gamasGroup]).getBounds();
