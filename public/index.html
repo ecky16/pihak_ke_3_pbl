@@ -1,14 +1,165 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Monitoring Survey & Gamas TA Pasuruan</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        /* CSS Wajib Biar Map Gak Blank */
+        html, body { height: 100%; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; background: #f0f2f5; }
+        
+        #controls { 
+            padding: 15px 20px; 
+            background: #ffffff; 
+            border-bottom: 1px solid #ddd; 
+            display: flex; 
+            gap: 15px; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Container Logo di Pojok Kanan */
+        .brand-container {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-ta {
+            height: 70px; 
+            width: auto;
+            object-fit: contain;
+        }
+
+        #map { flex-grow: 1; width: 100%; height: 100vh; /* Tambahkan ini biar muncul */ background: #e5e3df; }
+
+        .stats-box { 
+            background: #fff; 
+            padding: 8px 15px; 
+            border-radius: 8px; 
+            border: 1px solid #eee;
+            font-weight: 600; 
+            font-size: 14px;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-width: 120px;
+        }
+
+        .status-offline { 
+            background-color: #fff0f0 !important; 
+            border: 2px solid #ff4d4d !important; 
+            color: #d93025 !important;
+            animation: blinker 1.5s linear infinite;
+        }
+
+        @keyframes blinker {
+            50% { opacity: 0.7; }
+        }
+
+        .warning-text { color: #d93025; font-size: 10px; margin-top: 2px; }
+        .success-text { color: #28a745; font-size: 10px; margin-top: 2px; }
+        .off-text { color: #888; font-size: 10px; margin-top: 2px; }
+        .target-reached { color: #28a745 !important; border-color: #28a745; background: #f4fff7; }
+        
+        select, input { 
+            padding: 10px; 
+            border-radius: 6px; 
+            border: 1px solid #ccd0d5; 
+            background: white;
+            outline: none;
+        }
+
+        button { 
+            padding: 10px 20px; 
+            background: #0084ff; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            font-weight: bold;
+            cursor: pointer; 
+            transition: 0.3s;
+        }
+
+        button:hover { background: #0073e6; }
+
+        .custom-popup .leaflet-popup-content-wrapper { border-radius: 12px; padding: 5px; }
+        
+        /* Tombol Evidence Merah */
+        .btn-view {
+            display: block;
+            text-align: center;
+            background: #d32f2f;
+            color: white !important;
+            padding: 8px;
+            border-radius: 6px;
+            text-decoration: none;
+            margin-top: 10px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <input type="date" id="selectTanggal" onchange="fetchData()">
+
+    <select id="selectTeknisi" onchange="renderMaps()">
+        <option value="">-- Semua Teknisi --</option>
+    </select>
+    
+    <button onclick="fetchData()">🔄 Refresh</button>
+    
+    <div class="stats-box" id="jarakTempuh">
+        <div>📍 0 KM</div>
+    </div>
+    
+    <div class="stats-box" id="totalLaporan">
+        <div>📸 0 Foto</div>
+    </div>
+
+    <div class="brand-container">
+        <img src="https://raw.githubusercontent.com/ecky16/pihak_ke_3_pbl/main/Logo TA New.png" 
+             alt="Logo Telkom Akses" 
+             class="logo-ta">
+    </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
-    let map = L.map('map').setView([-7.2575, 112.7521], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© maz_e_q' }).addTo(map);
+    // Inisialisasi Map (Fokus ke Area Pasuruan)
+    let map = L.map('map').setView([-7.6417, 112.9067], 13);
+    let baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© Mas Ecky TA' }).addTo(map);
 
     let allData = [];
     let currentSheetName = "DATA";
-    let polylineGroup = L.featureGroup().addTo(map);
-    let markerGroup = L.featureGroup().addTo(map);
-    let gamasGroup = L.featureGroup().addTo(map); // <--- LAYER KHUSUS GAMAS
+    
+    // LAYER GROUPS (Biar Gamas dan Tracking terpisah)
+    let polylineGroup = L.featureGroup().addTo(map); // Garis jalan teknisi
+    let markerGroup = L.featureGroup().addTo(map);   // Foto survey teknisi
+    let gamasGroup = L.featureGroup().addTo(map);    // <--- LAYER KHUSUS GAMAS (💥/⚠️)
+
+    // FITUR: KONTROL LAYER (Pojok Kanan Atas Map)
+    const overlayMaps = {
+        "Garis Jalan Teknisi": polylineGroup,
+        "Foto Survey Teknisi": markerGroup,
+        "Sejarah Gamas Pasuruan": gamasGroup // <--- Layer Gamas
+    };
+    L.control.layers(null, overlayMaps, {collapsed: false}).addTo(map);
 
     function calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371;
@@ -33,14 +184,11 @@
             }
         }
 
+        // 1. Ambil Data Tracking Teknisi
         try {
-            // 1. Ambil Data Tracking Teknisi
             const response = await fetch(`${GAS_URL}?sheetName=${currentSheetName}`);
             allData = await response.json();
             
-            // 2. Ambil Data Gamas
-            await fetchGamasData();
-
             const select = document.getElementById('selectTeknisi');
             const valSebelumnya = select.value;
             const daftarNama = [...new Set(allData.map(item => item.Nama))].filter(n => n && n !== "Unknown");
@@ -55,10 +203,13 @@
             select.value = valSebelumnya;
             renderMaps();
         } catch (e) { 
-            console.error("Error:", e); 
+            console.error("Error Tracking:", e); 
             allData = [];
             renderMaps();
         }
+
+        // 2. Ambil Data Gamas secara terpisah (Tahan Error)
+        fetchGamasData(); 
     }
 
     // --- FUNGSI TAMPILKAN TITIK GAMAS ---
@@ -66,35 +217,44 @@
         try {
             const res = await fetch(`${GAS_URL}?sheetName=db_gamas`);
             const gamasData = await res.json();
+            
+            if (!Array.isArray(gamasData)) return; // Cegah error kalau data kosong
+
             gamasGroup.clearLayers();
 
             gamasData.forEach(g => {
-                if (g.Lat && g.Lon && g.Lat != 0) {
+                // Ambil koordinat (cek Lat atau Latitude)
+                let lat = g.Lat || g.Latitude;
+                let lon = g.Lon || g.Longitude;
+
+                if (lat && lon && lat != 0) {
                     // Pakai Emoji Api atau Tanda Seru
                     const iconGamas = L.divIcon({
-                        html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">🔥</div>',
+                        html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>',
                         className: 'gamas-marker',
                         iconSize: [30, 30],
                         iconAnchor: [15, 15]
                     });
 
-                    L.marker([g.Lat, g.Lon], {icon: iconGamas})
+                    L.marker([lat, lon], {icon: iconGamas})
                      .addTo(gamasGroup)
                      .bindPopup(`
                         <div style="text-align:center; min-width:150px;">
-                            <b style="color:red; font-size:14px;">⚠️ SEJARAH GAMAS</b><br>
+                            <b style="color:red; font-size:14px;">💥 SEJARAH GAMAS</b><br>
                             <hr style="margin: 5px 0;">
-                            <b>Tiket:</b> ${g.Tiket}<br>
-                            <b>Definisi:</b> ${g.Definisi}<br>
-                            <b>Penyebab:</b> ${g.Penyebab}<br>
-                            <small>${g.Tanggal}</small><br>
-                            <p style="font-size:11px; color:#666;">${g.Keterangan}</p>
-                            <a href="${g.Link_Evidence}" target="_blank" class="btn-view" style="background:red;">📂 Lihat Evidence</a>
+                            <b>Tiket:</b> ${g.Tiket || '-'}<br>
+                            <b>Definisi:</b> ${g.Definisi || '-'}<br>
+                            <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
+                            <small>${g.Tanggal || ''}</small><br>
+                            <p style="font-size:11px; color:#666;">${g.Keterangan || ''}</p>
+                            <a href="${g.Link_Evidence || '#'}" target="_blank" class="btn-view">📂 Lihat Evidence</a>
                         </div>
                      `);
                 }
             });
-        } catch (e) { console.error("Gamas Error:", e); }
+        } catch (e) { 
+            console.error("Gamas Error:", e); 
+        }
     }
 
     function renderMaps() {
@@ -132,7 +292,7 @@
                     if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
                 }
                 if (lat && lat != 0) {
-                    const popupMsg = `<div style="text-align:center"><b>Temuan ${d.Nama}</b><br><small>${new Date(d.Timestamp).toLocaleTimeString()}</small><br><p style="margin:5px 0">${d.Keterangan}</p><a href="${d.Photo_URL}" target="_blank" class="btn-view">📂 Buka di Telegram</a></div>`;
+                    const popupMsg = `<div style="text-align:center"><b>Temuan ${d.Nama}</b><br><small>${new Date(d.Timestamp).toLocaleTimeString()}</small><br><p style="margin:5px 0">${d.Keterangan}</p><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc;">📂 Buka di Telegram</a></div>`;
                     L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg, {className: 'custom-popup'});
                 }
             }
@@ -154,7 +314,7 @@
             }
         });
 
-        // Update Statistik dan Status GPS (Logic Mas yang lama tetap terjaga)
+        // Update Statistik dan Status GPS (Logic Mas Ecky Tetap Sama)
         const distElem = document.getElementById('jarakTempuh');
         let statusHtml = "";
         if (teknisiSel && waktuTerakhir && currentSheetName === "DATA") {
@@ -185,7 +345,15 @@
     }
 
     fetchData();
+    // Auto-refresh data teknisi setiap 1 menit (Gamas tidak perlu auto-refresh)
     setInterval(() => {
-        if (currentSheetName === "DATA") fetchData();
+        if (currentSheetName === "DATA") {
+             // Cukup refresh data teknisi biar gak berat
+             fetch(`${GAS_URL}?sheetName=${currentSheetName}`)
+                 .then(res => res.json())
+                 .then(data => { allData = data; renderMaps(); });
+        }
     }, 60000); 
 </script>
+</body>
+</html>
