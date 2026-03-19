@@ -113,15 +113,23 @@
     }
 
     // LOGIKA FILTER RANGE TANGGAL
-    function isDateInRange(targetDate, start, end) {
+function isDateInRange(targetDate, start, end) {
         if (!targetDate) return false;
-        const d = new Date(targetDate).toISOString().split('T')[0];
-        if (!start && !end) return true;
-        if (start && !end) return d >= start;
-        if (!start && end) return d <= end;
-        return d >= start && d <= end;
-    }
+        
+        // Buat objek date dari target (Spreadsheet)
+        const d = new Date(targetDate);
+        
+        // Ambil tahun, bulan, tanggal secara lokal (WIB), bukan UTC
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const formatLokal = `${yyyy}-${mm}-${dd}`;
 
+        if (!start && !end) return true;
+        if (start && !end) return formatLokal >= start;
+        if (!start && end) return formatLokal <= end;
+        return formatLokal >= start && formatLokal <= end;
+    }
     async function fetchData() {
         const tglMulai = document.getElementById('tglMulai').value;
         const sekarang = new Date();
