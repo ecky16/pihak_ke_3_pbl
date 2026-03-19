@@ -1,6 +1,7 @@
 {
+  "version": 2,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/gamas", "destination": "/gamas.html" }
+    { "source": "/gamas", "destination": "/public/gamas.html" }
   ]
 }
