@@ -302,7 +302,21 @@
                     if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
                 }
                 if (lat && lat != 0) {
-                    const popupMsg = `<div style="text-align:center"><b>Temuan ${d.Nama}</b><br><p style="margin:5px 0">${d.Keterangan}</p><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc;">📂 Telegram</a></div>`;
+                    // Kita format tanggalnya biar rapi (Contoh: 16/03/2026 14:30)
+                    const tglSurvey = d.Timestamp ? new Date(d.Timestamp).toLocaleString('id-ID', {day:'numeric', month:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '-';
+
+                    const popupMsg = `
+                        <div style="text-align:center; min-width:160px;">
+                            <b style="color:#0084ff; font-size:14px;">📸 TEMUAN SURVEY</b><br>
+                            <hr style="margin:5px 0">
+                            <div style="text-align:left; font-size:11px; line-height:1.5;">
+                                <b>Teknisi:</b> ${d.Nama || '-'}<br>
+                                <b>Keterangan:</b> ${d.Keterangan || '-'}<br>
+                                <b>Waktu:</b> ${tglSurvey}
+                            </div>
+                            <a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc; color:white; padding:8px; border-radius:5px; text-decoration:none; display:block; margin-top:10px; text-align:center;">📂 Buka di Telegram</a>
+                        </div>
+                    `;
                     L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg);
                 }
             }
