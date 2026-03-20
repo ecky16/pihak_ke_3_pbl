@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Analitik Survey & Gamas - SA PROBOLINGGO</title>
+    <title>Command Center SA PROBOLINGGO</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; }
+        html, body { height: 100%; margin: 0; padding: 0; transition: background 0.3s; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; background: #f0f2f5; }
         
         /* --- CSS LOGIN PROFESIONAL --- */
@@ -48,21 +48,21 @@
         #controls { 
             padding: 15px 20px; background: #ffffff; border-bottom: 1px solid #ddd; 
             display: flex; gap: 15px; align-items: center; flex-wrap: wrap; 
-            z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); transition: 0.3s;
         }
 
         .brand-container { margin-left: auto; display: flex; align-items: center; gap: 10px; }
         .logo-ta { height: 60px; width: auto; object-fit: contain; }
-        #map { flex-grow: 1; width: 100%; height: 100vh; background: #e5e3df; }
+        #map { flex-grow: 1; width: 100%; height: 100vh; background: #e5e3df; z-index: 1; }
 
         .stats-box { 
             background: #fff; padding: 8px 12px; border-radius: 8px; border: 1px solid #eee;
-            font-weight: 600; font-size: 13px; color: #333; min-width: 100px; text-align: center;
+            font-weight: 600; font-size: 13px; color: #333; min-width: 100px; text-align: center; transition: 0.3s;
         }
 
         .label-range { font-size: 11px; font-weight: bold; color: #666; margin-bottom: 2px; }
 
-        select, input[type="date"] { padding: 8px; border-radius: 6px; border: 1px solid #ccd0d5; background: white; font-size: 13px; }
+        select, input[type="date"] { padding: 8px; border-radius: 6px; border: 1px solid #ccd0d5; background: white; font-size: 13px; transition: 0.3s; }
         
         .btn-action { 
             padding: 8px 15px; background: #0084ff; color: white; border: none; 
@@ -71,9 +71,29 @@
         .btn-action:hover { background: #0073e6; }
         .btn-action:disabled { background: #cccccc; cursor: not-allowed; }
 
+        .btn-theme { background: #333; color: #fff; }
+        .btn-theme:hover { background: #111; }
+
         .btn-view {
             display: block; text-align: center; background: #d32f2f; color: white !important;
             padding: 8px; border-radius: 6px; text-decoration: none; margin-top: 10px; font-size: 11px; font-weight: bold;
+        }
+
+        /* --- TEMA DARK MODE --- */
+        body.dark-mode { background: #121212; }
+        body.dark-mode #controls { background: #1e1e1e; border-bottom: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        body.dark-mode .stats-box { background: #2a2a2a; border: 1px solid #444; color: #eee; }
+        body.dark-mode .label-range { color: #aaa; }
+        body.dark-mode select, body.dark-mode input[type="date"] { background: #333; color: #fff; border: 1px solid #555; color-scheme: dark; }
+        body.dark-mode .leaflet-popup-content-wrapper, body.dark-mode .leaflet-popup-tip { background: #2a2a2a; color: #eee; border: 1px solid #444; }
+        body.dark-mode .leaflet-popup-content b { color: #64b5f6 !important; } 
+
+        @keyframes shake {
+          0% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          50% { transform: translateX(5px); }
+          75% { transform: translateX(-5px); }
+          100% { transform: translateX(0); }
         }
     </style>
 </head>
@@ -107,7 +127,8 @@
         <option value="">-- Semua Teknisi --</option>
     </select>
     
-    <button id="btnRefresh" class="btn-action" onclick="fetchData(true)">🔄 Refresh Data</button>
+    <button id="btnRefresh" class="btn-action" onclick="fetchData(true)">🔄 Refresh</button>
+    <button id="btnTheme" class="btn-action btn-theme" onclick="toggleTheme()">🌙 Dark Mode</button>
     
     <div class="stats-box" id="jarakTempuh">
         <div style="color:#0084ff;">📍 0.00 KM</div>
@@ -120,7 +141,7 @@
     </div>
 
     <div class="stats-box" id="totalGamas" style="border-left: 4px solid red;">
-        <div style="color:red;">💥 0 Gamas</div>
+        <div style="color:#ff4d4d;" id="textGamas">💥 0 Gamas</div>
         <div style="font-size:9px; color:#999;">TOTAL GANGGUAN</div>
     </div>
 
@@ -136,7 +157,7 @@
 <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 
-    // 1. PILIHAN KULIT MAPS
+    // PILIHAN KULIT MAPS
     const googleStreets = L.tileLayer('http://{s}.google.com/vt?lyrs=m&x={x}&y={y}&z={z}', {
         maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], attribution: '© Google Maps'
     });
@@ -147,7 +168,6 @@
         maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], attribution: '© Google Terrain'
     });
     
-    // Set map ke Probolinggo
     let map = L.map('map').setView([-7.7569, 113.2115], 13);
     googleStreets.addTo(map); 
 
@@ -170,6 +190,21 @@
         "💥 History Gamas ": gamasGroup
     };
     L.control.layers(baseMaps, overlayMaps, {collapsed: false}).addTo(map);
+
+    // --- FUNGSI TEMA (DARK MODE) ---
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        const btn = document.getElementById('btnTheme');
+        if(document.body.classList.contains('dark-mode')) {
+            btn.innerHTML = '☀️ Light Mode';
+            btn.style.background = '#f1c40f';
+            btn.style.color = '#333';
+        } else {
+            btn.innerHTML = '🌙 Dark Mode';
+            btn.style.background = '#333';
+            btn.style.color = 'white';
+        }
+    }
 
     function calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371;
@@ -253,7 +288,7 @@
         } catch (e) { 
             console.error("Error Fetch:", e); 
         } finally {
-            if(isManualRefresh) { btn.innerText = "🔄 Refresh Data"; btn.disabled = false; }
+            if(isManualRefresh) { btn.innerText = "🔄 Refresh"; btn.disabled = false; }
         }
     }
 
@@ -282,8 +317,8 @@
                         })
                     }).addTo(gamasGroup).bindPopup(`
                         <div style="text-align:center; min-width:160px;">
-                            <b style="color:red; font-size:14px;">💥 DATA GAMAS</b><br>
-                            <hr style="margin:5px 0">
+                            <b style="color:#d32f2f; font-size:14px;">💥 DATA GAMAS</b><br>
+                            <hr style="margin:5px 0; border-color:#555;">
                             <div style="text-align:left; font-size:11px; line-height:1.5;">
                                 <b>Tiket:</b> ${g.Tiket || '-'}<br>
                                 <b>Definisi:</b> ${g.Definisi || '-'}<br>
@@ -296,7 +331,7 @@
                 }
             }
         });
-        document.getElementById('totalGamas').innerHTML = `<div style="color:red;">💥 ${countGamas} Gamas</div><div style="font-size:9px; color:#999;">TOTAL GANGGUAN</div>`;
+        document.getElementById('textGamas').innerHTML = `💥 ${countGamas} Gamas`;
     }
 
     function renderMaps() {
@@ -328,7 +363,7 @@
                     const popupMsg = `
                         <div style="text-align:center; min-width:160px;">
                             <b style="color:#0084ff; font-size:14px;">📸 TEMUAN SURVEY</b><br>
-                            <hr style="margin:5px 0">
+                            <hr style="margin:5px 0; border-color:#555;">
                             <div style="text-align:left; font-size:11px; line-height:1.5;">
                                 <b>Teknisi:</b> ${d.Nama || '-'}<br>
                                 <b>Keterangan:</b> ${d.Keterangan || '-'}<br>
@@ -375,7 +410,7 @@
         });
 
         document.getElementById('jarakTempuh').innerHTML = `<div style="color:#0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="font-size:9px; color:#999;">JARAK TEMPUH</div>`;
-        document.getElementById('totalLaporan').innerHTML = `<div style="color:#28a745;">📸 ${totalLaporan} Foto Survey</div><div style="font-size:9px; color:#999;">FOTO SURVEY</div>`;
+        document.getElementById('totalLaporan').innerHTML = `<div style="color:#28a745;">📸 ${totalLaporan} Laporan</div><div style="font-size:9px; color:#999;">FOTO SURVEY</div>`;
         
         if (filtered.length > 0 || allGamasData.length > 0) {
             const combinedBounds = L.featureGroup([polylineGroup, markerGroup, gamasGroup]).getBounds();
@@ -384,8 +419,8 @@
     }
 
     // --- LOGIKA LOGIN (PINTU GERBANG) ---
-    const USER_ADMIN = "admin";    // <-- GANTI USERNAME DI SINI
-    const PASS_ADMIN = "anjay";   // <-- GANTI PASSWORD DI SINI
+    const USER_ADMIN = "ecky";    // <-- GANTI USERNAME DI SINI
+    const PASS_ADMIN = "ta123";   // <-- GANTI PASSWORD DI SINI
 
     function prosesLogin() {
         const user = document.getElementById('inputUser').value;
@@ -403,7 +438,7 @@
             document.getElementById('tglMulai').value = today;
             document.getElementById('tglSelesai').value = today;
 
-            // MULAI TARIK DATA! (Data aman, tidak ditarik sebelum login)
+            // MULAI TARIK DATA! 
             fetchData(); 
 
             // Aktifkan Smart Auto-Refresh
@@ -420,16 +455,6 @@
         }
     }
 </script>
-
-<style>
-    @keyframes shake {
-      0% { transform: translateX(0); }
-      25% { transform: translateX(-5px); }
-      50% { transform: translateX(5px); }
-      75% { transform: translateX(-5px); }
-      100% { transform: translateX(0); }
-    }
-</style>
 
 </body>
 </html>
