@@ -291,20 +291,29 @@
 
         let totalLaporan = 0;
         let totalJarak = 0;
+        
+        // Objek baru untuk menyimpan segmen garis (supaya bisa putus)
         const perUser = {};
 
+        // Proses Data Survey
         filtered.forEach((d, i) => {
+            
+            // 1. LOGIKA MUNCULIN MARKER FOTO
             if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
                 totalLaporan++;
                 let lat = d.Latitude, lon = d.Longitude;
+                
+                // Jika foto tidak ada koordinatnya, cari koordinat terakhir dari teknisi tersebut
                 if (!lat || lat == 0) {
                     const lastPos = filtered.slice(0, i).reverse().find(r => r.Nama === d.Nama && r.Latitude != 0);
                     if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
                 }
+                
+                // Jika koordinat ditemukan, pasang marker
                 if (lat && lat != 0) {
-                    // Kita format tanggalnya biar rapi (Contoh: 16/03/2026 14:30)
+                    // Format waktu WIB yang rapi
                     const tglSurvey = d.Timestamp ? new Date(d.Timestamp).toLocaleString('id-ID', {day:'numeric', month:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '-';
-
+                    
                     const popupMsg = `
                         <div style="text-align:center; min-width:160px;">
                             <b style="color:#0084ff; font-size:14px;">📸 TEMUAN SURVEY</b><br>
@@ -314,32 +323,71 @@
                                 <b>Keterangan:</b> ${d.Keterangan || '-'}<br>
                                 <b>Waktu:</b> ${tglSurvey}
                             </div>
-                            <a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc; color:white; padding:8px; border-radius:5px; text-decoration:none; display:block; margin-top:10px; text-align:center;">📂 Buka di Telegram</a>
+                            <a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc; color:white; padding:8px; border-radius:5px; text-decoration:none; display:block; margin-top:10px; text-align:center;">📂 Buka Telegram</a>
                         </div>
                     `;
                     L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg);
                 }
             }
+
+            // 2. LOGIKA GARIS JALUR (DENGAN PEMUTUS JIKA BEDA HARI / OFF LAMA)
             if (d.Latitude && d.Longitude && d.Latitude != 0) {
-                if (!perUser[d.Nama]) perUser[d.Nama] = [];
-                perUser[d.Nama].push([d.Latitude, d.Longitude]);
-            }
-        });
-
-        Object.keys(perUser).forEach(nama => {
-            const coords = perUser[nama];
-            if (coords.length > 1) {
-                L.polyline(coords, { color: teknisiSel ? '#007bff' : '#0056b3', weight: 5, opacity: 0.8, lineJoin: 'round' }).addTo(polylineGroup);
-                for (let j = 1; j < coords.length; j++) {
-                    totalJarak += calculateDistance(coords[j-1][0], coords[j-1][1], coords[j][0], coords[j][1]);
+                // Inisialisasi data teknisi jika belum ada
+                if (!perUser[d.Nama]) {
+                    perUser[d.Nama] = {
+                        segments: [[]], // Array 2D: Kumpulan garis yang terpisah
+                        lastTime: 0     // Menyimpan waktu terakhir koordinat tercatat
+                    };
                 }
+
+                let userData = perUser[d.Nama];
+                let currentTime = new Date(d.Timestamp).getTime();
+                
+                // Jika ini bukan koordinat pertama, cek apakah perlu diputus
+                if (userData.lastTime !== 0) {
+                    let lastDate = new Date(userData.lastTime).toDateString();
+                    let currDate = new Date(currentTime).toDateString();
+                    
+                    // Hitung selisih jam antara koordinat sekarang dengan sebelumnya
+                    let diffHours = (currentTime - userData.lastTime) / (1000 * 60 * 60);
+
+                    // PUTUS GARIS JIKA: Beda Hari ATAU Selisih Waktu > 4 Jam
+                    if (lastDate !== currDate || diffHours > 4) {
+                        userData.segments.push([]); // Buat wadah garis baru
+                    }
+                }
+
+                // Masukkan koordinat ke segmen garis yang paling aktif (terakhir)
+                userData.segments[userData.segments.length - 1].push([parseFloat(d.Latitude), parseFloat(d.Longitude)]);
+                userData.lastTime = currentTime; // Update waktu terakhir
             }
         });
 
+        // 3. MENGGAMBAR GARIS KE PETA
+        Object.keys(perUser).forEach(nama => {
+            const userData = perUser[nama];
+            
+            // Looping setiap segmen garis milik teknisi ini
+            userData.segments.forEach(coords => {
+                // Gambar garis HANYA JIKA segmen ini punya minimal 2 titik (bisa ditarik garis)
+                if (coords.length > 1) {
+                    const warnaGaris = teknisiSel ? '#007bff' : '#0056b3';
+                    L.polyline(coords, { color: warnaGaris, weight: 5, opacity: 0.8, lineJoin: 'round' }).addTo(polylineGroup);
+                    
+                    // Hitung jarak tempuh untuk segmen ini
+                    for (let j = 1; j < coords.length; j++) {
+                        totalJarak += calculateDistance(coords[j-1][0], coords[j-1][1], coords[j][0], coords[j][1]);
+                    }
+                }
+            });
+        });
+
+        // Update kotak statistik
         document.getElementById('jarakTempuh').innerHTML = `<div style="color:#0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="font-size:9px; color:#999;">JARAK TEMPUH</div>`;
         document.getElementById('totalLaporan').innerHTML = `<div style="color:#28a745;">📸 ${totalLaporan} Laporan</div><div style="font-size:9px; color:#999;">FOTO SURVEY</div>`;
         
-        if (filtered.length > 0) {
+        // Sesuaikan zoom peta agar mencakup semua titik (Survey + Gamas)
+        if (filtered.length > 0 || allGamasData.length > 0) {
             const combinedBounds = L.featureGroup([polylineGroup, markerGroup, gamasGroup]).getBounds();
             if (combinedBounds.isValid()) map.fitBounds(combinedBounds, {padding: [50, 50]});
         }
