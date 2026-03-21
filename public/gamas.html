@@ -77,28 +77,22 @@
             statusDiv.style.display = "block";
 
             try {
-                // 1. SIMPAN DATA KE SPREADSHEET (GAS)
-                statusDiv.innerText = "⏳ Menyimpan data ke Spreadsheet...";
-                const data = {
-    action: 'submit_gamas',
-    tanggal: document.getElementById('tanggal').value,
-    tiket: document.getElementById('tiket').value,
-    definisi: document.getElementById('definisi').value,
-    penyebab: document.getElementById('penyebab').value,
-    lat: document.getElementById('lat').value,
-    lon: document.getElementById('lon').value,
-    keterangan: document.getElementById('keterangan').value,
-    albumUrl: `https://t.me/c/${CHANNEL_ID.replace("-100", "")}/1` // Kita buang -100 nya
-};
-                await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(data) });
+                // Keterangan lengkap untuk caption Album
+                const tiketVal = document.getElementById('tiket').value;
+                const definisiVal = document.getElementById('definisi').value;
+                const penyebabVal = document.getElementById('penyebab').value;
+                const latVal = document.getElementById('lat').value;
+                const lonVal = document.getElementById('lon').value;
+                const ketVal = document.getElementById('keterangan').value;
+                const tglVal = document.getElementById('tanggal').value;
 
-                // 2. PROSES KIRIM ALBUM KE TELEGRAM
-                statusDiv.innerText = "⏳ Menyiapkan Album Foto...";
+                const fullCaption = `⚠️ EVIDENCE GAMAS\n\n📌 Tiket: ${tiketVal}\n📂 Definisi: ${definisiVal}\n🛠️ Penyebab: ${penyebabVal}\n📍 Lokasi: ${latVal}, ${lonVal}\n📝 Ket: ${ketVal}`;
+
+                // --- 1. PROSES KIRIM ALBUM KE TELEGRAM DULU ---
+                statusDiv.innerText = `🚀 Mengirim Album (${files.length} Foto)...`;
+                
                 const formData = new FormData();
                 formData.append('chat_id', CHANNEL_ID);
-
-                // Keterangan lengkap untuk caption Album
-                const fullCaption = `⚠️ EVIDENCE GAMAS\n\n📌 Tiket: ${data.tiket}\n📂 Definisi: ${data.definisi}\n🛠️ Penyebab: ${data.penyebab}\n📍 Lokasi: ${data.lat}, ${data.lon}\n📝 Ket: ${data.keterangan}`;
 
                 let mediaArray = [];
                 for (let i = 0; i < files.length; i++) {
@@ -111,21 +105,39 @@
                         caption: i === 0 ? fullCaption : "" // Caption cuma di foto pertama biar rapi
                     });
                 }
-
                 formData.append('media', JSON.stringify(mediaArray));
 
-                statusDiv.innerText = `🚀 Mengirim Album (${files.length} Foto)...`;
-                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMediaGroup`, {
+                const responseTg = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMediaGroup`, {
                     method: 'POST',
                     body: formData
                 });
 
-                if (response.ok) {
-                    statusDiv.innerText = "✅ Berhasil Terkirim ke Channel!";
-                    setTimeout(() => tg.close(), 1500);
-                } else {
-                    throw new Error("Gagal kirim album ke Telegram.");
-                }
+                if (!responseTg.ok) throw new Error("Gagal kirim album ke Telegram.");
+                
+                // Ambil ID pesan aslinya dari balasan Telegram
+                const resultTg = await responseTg.json();
+                const realMessageId = resultTg.result[0].message_id; // Ngambil ID dari foto pertama di album
+
+                // --- 2. BARU SIMPAN DATA KE SPREADSHEET (GAS) ---
+                statusDiv.innerText = "⏳ Menyimpan data ke Spreadsheet...";
+                
+                const data = {
+                    action: 'submit_gamas',
+                    tanggal: tglVal,
+                    tiket: tiketVal,
+                    definisi: definisiVal,
+                    penyebab: penyebabVal,
+                    lat: latVal,
+                    lon: lonVal,
+                    keterangan: ketVal,
+                    albumUrl: `https://t.me/c/${CHANNEL_ID.replace("-100", "")}/${realMessageId}` // SEKARANG ID-NYA ASLI
+                };
+                
+                await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(data) });
+
+                // --- 3. SELESAI ---
+                statusDiv.innerText = "✅ Berhasil Terkirim!";
+                setTimeout(() => tg.close(), 1500);
 
             } catch (e) {
                 alert("Error: " + e.message);
