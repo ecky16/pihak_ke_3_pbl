@@ -143,7 +143,7 @@
     
     <div class="stats-box" id="jarakTempuh">
         <div style="color:#0084ff;">📍 0.00 KM</div>
-        <div style="font-size:9px; color:#999;">JARAK TEMPUH</div>
+        <div style="font-size:9px; color:#999;">TOTAL JARAK PREVENTIVE</div>
     </div>
     
     <div class="stats-box" id="totalLaporan">
@@ -420,7 +420,7 @@
             });
         });
 
-        document.getElementById('jarakTempuh').innerHTML = `<div style="color:#0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="font-size:9px; color:#999;">JARAK TEMPUH</div>`;
+        document.getElementById('jarakTempuh').innerHTML = `<div style="color:#0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="font-size:9px; color:#999;">TOTAL JARAK PREVENTIVE</div>`;
         document.getElementById('totalLaporan').innerHTML = `<div style="color:#28a745;">📸 ${totalLaporan} Laporan</div><div style="font-size:9px; color:#999;">FOTO SURVEY</div>`;
         
         if (filtered.length > 0 || allGamasData.length > 0) {
