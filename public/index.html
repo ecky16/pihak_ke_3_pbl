@@ -23,7 +23,9 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 320px;
             border-top: 5px solid #d32f2f;
         }
-        .login-box img { height: 75px; margin-bottom: 15px; }
+        /* UKURAN LOGO DIPERBESAR DI SINI */
+        .login-box img { height: 110px; margin-bottom: 20px; object-fit: contain; }
+        
         .login-box h2 { margin: 0 0 5px 0; color: #1a1a1a; font-size: 22px; font-weight: 800; letter-spacing: 1px;}
         .login-box p { margin: 0 0 25px 0; color: #666; font-size: 13px; }
         
@@ -43,6 +45,12 @@
         .login-btn:active { transform: translateY(0); }
         
         #login-error { color: #d32f2f; font-size: 13px; font-weight: bold; display: none; margin-top: 15px; background: #ffebee; padding: 10px; border-radius: 6px; }
+
+        /* TULISAN VERSI DI POJOK KANAN BAWAH LAYAR LOGIN */
+        .version-text {
+            position: absolute; bottom: 15px; right: 20px;
+            color: rgba(255, 255, 255, 0.6); font-size: 12px; letter-spacing: 1px;
+        }
 
         /* --- CSS DASHBOARD --- */
         #controls { 
@@ -112,6 +120,8 @@
         <button onclick="prosesLogin()" class="login-btn">🔓 LOGIN</button>
         <div id="login-error">⚠️ Username atau Password Salah!</div>
     </div>
+    
+    <div class="version-text">©SIGAP v.2.3.0</div>
 </div>
 
 <div id="controls">
