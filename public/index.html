@@ -203,7 +203,7 @@
     let gamasGroup = L.featureGroup().addTo(map);
 
     const baseMaps = { "🗺️ Jalan": googleStreets, "🌍 Satelit": googleSatellite, "⛰️ Terrain": googleTerrain };
-    const overlayMaps = { "🔵 Jalur": polylineGroup, "📸 Survey": markerGroup, "💥 Gamas": gamasGroup };
+    const overlayMaps = { "🔵 Jalur Survey": polylineGroup, "📸 Evidence Survey": markerGroup, "💥 History Gamas": gamasGroup };
     L.control.layers(baseMaps, overlayMaps, {collapsed: false}).addTo(map);
 
     function toggleTheme() {
