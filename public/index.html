@@ -27,24 +27,27 @@
         .login-box h2 { margin: 0 0 5px 0; color: #1a1a1a; font-size: 22px; font-weight: 800; letter-spacing: 1px;}
         .login-box p { margin: 0 0 25px 0; color: #666; font-size: 13px; }
         
-        ..login-input {
+     .login-input {
             width: 100%; 
-            height: 48px; /* Ini yang mengunci tingginya biar 100% sama rata */
-            padding: 0 14px; /* Padding atas-bawah dinolkan, kiri-kanan tetap 14px */
-            margin-bottom: 15px; 
-            border: 1px solid #ddd;
-            border-radius: 8px; 
+            height: 48px; 
+            padding: 0 14px; 
+            margin-bottom: 15px !important; /* Paksa kasih jarak bawah */
+            border: 1px solid #ddd !important; /* Paksa warna garis pinggir seragam */
+            border-radius: 8px !important; 
             box-sizing: border-box; 
             font-size: 14px; 
-            font-family: inherit; /* Mencegah browser ganti font password */
+            font-family: inherit; 
             outline: none;
             background: #f9f9f9; 
             transition: 0.3s;
         }
-        .login-input:focus { border-color: #d32f2f; background: #fff; box-shadow: 0 0 0 3px rgba(211,47,47,0.1); }
+        .login-input:focus { border-color: #d32f2f !important; background: #fff; box-shadow: 0 0 0 3px rgba(211,47,47,0.1); }
         
         .login-btn {
-            width: 100%; padding: 14px; background: #d32f2f; color: white;
+            width: 100%; 
+            padding: 14px; 
+            margin-top: 10px; /* Tombolnya kita dorong ke bawah menjauh dari input */
+            background: #d32f2f; color: white;
             border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px;
             text-transform: uppercase; letter-spacing: 1px; transition: 0.3s;
         }
