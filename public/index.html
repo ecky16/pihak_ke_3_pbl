@@ -27,12 +27,12 @@
         .login-box h2 { margin: 0 0 5px 0; color: #1a1a1a; font-size: 22px; font-weight: 800; letter-spacing: 1px;}
         .login-box p { margin: 0 0 25px 0; color: #666; font-size: 13px; }
         
-     .login-input {
+        .login-input {
             width: 100%; 
-            height: 30px; 
+            height: 48px; 
             padding: 0 14px; 
-            margin-bottom: 15px !important; /* Paksa kasih jarak bawah */
-            border: 1px solid #ddd !important; /* Paksa warna garis pinggir seragam */
+            margin-bottom: 15px !important; 
+            border: 1px solid #ddd !important; 
             border-radius: 8px !important; 
             box-sizing: border-box; 
             font-size: 14px; 
@@ -44,10 +44,7 @@
         .login-input:focus { border-color: #d32f2f !important; background: #fff; box-shadow: 0 0 0 3px rgba(211,47,47,0.1); }
         
         .login-btn {
-            width: 100%; 
-            padding: 14px; 
-            margin-top: 10px; /* Tombolnya kita dorong ke bawah menjauh dari input */
-            background: #d32f2f; color: white;
+            width: 100%; padding: 14px; margin-top: 10px; background: #d32f2f; color: white;
             border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px;
             text-transform: uppercase; letter-spacing: 1px; transition: 0.3s;
         }
@@ -61,10 +58,8 @@
             padding: 10px 15px; background: #ffffff; border-bottom: 1px solid #ddd; 
             display: flex; gap: 10px; align-items: center; 
             z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); transition: 0.3s;
-            /* Bikin menu memanjang & bisa di-swipe di HP */
             overflow-x: auto; white-space: nowrap; flex-wrap: nowrap;
         }
-        /* Styling Scrollbar biar rapi */
         #controls::-webkit-scrollbar { height: 6px; }
         #controls::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
 
@@ -72,7 +67,7 @@
         .search-group { display: flex; gap: 5px; }
 
         .brand-container { margin-left: auto; display: flex; align-items: center; min-width: max-content; }
-        .logo-ta { height: 60px; width: auto; object-fit: contain; }
+        .logo-ta { height: 40px; width: auto; object-fit: contain; }
         #map { flex-grow: 1; width: 100%; height: 100%; background: #e5e3df; z-index: 1; }
 
         .stats-box { 
@@ -111,14 +106,6 @@
         body.dark-mode select, body.dark-mode input[type="date"], body.dark-mode input[type="text"] { background: #333; color: #fff; border: 1px solid #555; color-scheme: dark; }
         body.dark-mode .leaflet-popup-content-wrapper, body.dark-mode .leaflet-popup-tip { background: #2a2a2a; color: #eee; border: 1px solid #444; }
         body.dark-mode .leaflet-popup-content b { color: #64b5f6 !important; } 
-
-        @keyframes shake {
-          0% { transform: translateX(0); }
-          25% { transform: translateX(-5px); }
-          50% { transform: translateX(5px); }
-          75% { transform: translateX(-5px); }
-          100% { transform: translateX(0); }
-        }
     </style>
 </head>
 <body>
@@ -126,9 +113,9 @@
 <div id="login-screen">
     <div class="login-box">
         <img src="/Logo TA New.png" alt="Logo TA">
-         <h2>SIGAP</h2>
-        <h3>Sistem Informasi Gamas & Patroli</h3>
-        <p>Integrated Command Center: Preventif, Gamas & Patroli Jaringan</p>
+        <h2>SIGAP</h2>
+        <h2>(Sistem Informasi Gamas & Patroli)</h2>
+        <p>Integrated Command Center</p>
         
         <input type="text" id="inputUser" placeholder="Username" class="login-input" onkeypress="if(event.key === 'Enter') prosesLogin()">
         <input type="password" id="inputPass" placeholder="Password" class="login-input" onkeypress="if(event.key === 'Enter') prosesLogin()">
@@ -136,12 +123,12 @@
         <button onclick="prosesLogin()" class="login-btn">🔓 LOGIN</button>
         <div id="login-error">⚠️ Username atau Password Salah!</div>
     </div>
-    <div class="version-text">©SIGAP v.2.4.0</div>
+    <div class="version-text">©SIGAP v.2.3.0 - SA PROBOLINGGO</div>
 </div>
 
 <div id="controls">
     <div class="control-group">
-        <small class="label-range">CARI NOMOR TIKET GAMAS</small>
+        <small class="label-range">CARI NOMOR TIKET</small>
         <div class="search-group">
             <input type="text" id="inputCariTiket" placeholder="Misal: INC47432641..." onkeypress="if(event.key === 'Enter') cariTiket()">
             <button class="btn-action btn-cari" onclick="cariTiket()">🔍</button>
@@ -174,7 +161,7 @@
     
     <div class="stats-box" id="jarakTempuh">
         <div class="val" style="color:#0084ff;">📍 0.00 KM</div>
-        <div style="color:#999;">JARAK TEMPUH</div>
+        <div style="color:#999;">TOTAL PREVENTIVE</div>
     </div>
     
     <div class="stats-box" id="totalLaporan">
@@ -183,8 +170,8 @@
     </div>
 
     <div class="stats-box" id="totalGamas" style="border-left: 4px solid red;">
-        <div class="val" style="color:#ff4d4d;" id="textGamas">💥 0 Gamas</div>
-        <div style="color:#999;">TOTAL GANGGUAN</div>
+        <div class="val" style="color:#ff4d4d;" id="textGamas">💥 0</div>
+        <div style="color:#999;">TOTAL GAMAS</div>
     </div>
 
     <div class="brand-container">
@@ -215,7 +202,7 @@
     let gamasGroup = L.featureGroup().addTo(map);
 
     const baseMaps = { "🗺️ Jalan": googleStreets, "🌍 Satelit": googleSatellite, "⛰️ Terrain": googleTerrain };
-    const overlayMaps = { "🔵 Jalur Survey": polylineGroup, "📸 Evidence Survey": markerGroup, "💥 History Gamas": gamasGroup };
+    const overlayMaps = { "🔵 Jalur": polylineGroup, "📸 Survey": markerGroup, "💥 Gamas": gamasGroup };
     L.control.layers(baseMaps, overlayMaps, {collapsed: false}).addTo(map);
 
     function toggleTheme() {
@@ -291,7 +278,6 @@
             });
             select.value = valSebelumnya;
 
-            // Jika sedang ada pencarian tiket, biarkan. Jika kosong, render normal.
             const keyword = document.getElementById('inputCariTiket').value.trim();
             if(keyword) { cariTiket(); } else { renderMaps(); }
             
@@ -299,29 +285,13 @@
         finally { if(isManualRefresh) { btn.innerText = "🔄"; btn.disabled = false; } }
     }
 
-    // --- FITUR BARU: CARI TIKET GAMAS ---
     function cariTiket() {
         const keyword = document.getElementById('inputCariTiket').value.trim().toUpperCase();
-        
-        // Kalau kotak pencarian kosong, kembalikan peta ke kondisi awal (render normal)
-        if (!keyword) {
-            renderMaps();
-            return;
-        }
-
-        // Cari data yang tiketnya MENGANDUNG keyword yang diketik
+        if (!keyword) { renderMaps(); return; }
         const foundGamas = allGamasData.filter(g => g.Tiket && g.Tiket.toUpperCase().includes(keyword));
+        if (foundGamas.length === 0) { alert("⚠️ Tiket tidak ditemukan di database Gamas!"); return; }
 
-        if (foundGamas.length === 0) {
-            alert("⚠️ Tiket tidak ditemukan di database Gamas!");
-            return;
-        }
-
-        // Bersihkan peta
-        polylineGroup.clearLayers();
-        markerGroup.clearLayers();
-        gamasGroup.clearLayers();
-
+        polylineGroup.clearLayers(); markerGroup.clearLayers(); gamasGroup.clearLayers();
         let bounds = [];
 
         foundGamas.forEach(g => {
@@ -329,7 +299,6 @@
             if (!isNaN(pos.lat) && !isNaN(pos.lon) && pos.lat !== 0) {
                 const linkEvidence = g.Link_Evidence || g.Link || g.Photo || "#";
                 const tombolEvidence = linkEvidence !== "#" ? `<a href="${linkEvidence}" target="_blank" class="btn-view" style="background:#d32f2f;">📸 Cek Foto Gamas</a>` : `<p style="color:gray; font-size:10px; margin-top:10px;">(Foto tidak tersedia)</p>`;
-
                 const marker = L.marker([pos.lat, pos.lon], {
                     icon: L.divIcon({ html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>', className: 'gamas-marker', iconSize: [30, 30], iconAnchor: [15, 15] })
                 }).addTo(gamasGroup).bindPopup(`
@@ -345,22 +314,14 @@
                         ${tombolEvidence}
                     </div>
                 `);
-                
                 bounds.push([pos.lat, pos.lon]);
-                
-                // Buka popup otomatis
                 setTimeout(() => marker.openPopup(), 500);
             }
         });
-
-        document.getElementById('textGamas').innerHTML = `💥 ${foundGamas.length} Ditemukan`;
-        document.getElementById('jarakTempuh').innerHTML = `<div class="val" style="color:#0084ff;">📍 - KM</div><div style="color:#999;">JARAK TEMPUH</div>`;
+        document.getElementById('textGamas').innerHTML = `💥 ${foundGamas.length}`;
+        document.getElementById('jarakTempuh').innerHTML = `<div class="val" style="color:#0084ff;">📍 - KM</div><div style="color:#999;">TOTAL PREVENTIVE</div>`;
         document.getElementById('totalLaporan').innerHTML = `<div class="val" style="color:#28a745;">📸 - Laporan</div><div style="color:#999;">FOTO SURVEY</div>`;
-
-        // Nge-zoom otomatis ke titik gamas yang dicari
-        if (bounds.length > 0) {
-            map.fitBounds(bounds, {padding: [50, 50], maxZoom: 18});
-        }
+        if (bounds.length > 0) { map.fitBounds(bounds, {padding: [50, 50], maxZoom: 18}); }
     }
 
     function renderGamasPoints() {
@@ -378,13 +339,11 @@
                 }
             }
         });
-        document.getElementById('textGamas').innerHTML = `💥 ${countGamas} Gamas`;
+        document.getElementById('textGamas').innerHTML = `💥 ${countGamas}`;
     }
 
     function renderMaps() {
-        // Reset kolom pencarian kalau user ganti filter tanggal/teknisi
         document.getElementById('inputCariTiket').value = "";
-
         const teknisiSel = document.getElementById('selectTeknisi').value; const tglMulai = document.getElementById('tglMulai').value; const tglSelesai = document.getElementById('tglSelesai').value;
         polylineGroup.clearLayers(); markerGroup.clearLayers(); renderGamasPoints(); 
 
@@ -393,6 +352,7 @@
 
         let totalLaporan = 0; let totalJarak = 0; const perUser = {};
 
+        // --- UPGRADE: Menyimpan format tanggal untuk Pop-Up Garis ---
         filtered.forEach((d, i) => {
             if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
                 totalLaporan++; let lat = d.Latitude, lon = d.Longitude;
@@ -408,27 +368,58 @@
             }
 
             if (d.Latitude && d.Longitude && d.Latitude != 0) {
-                if (!perUser[d.Nama]) { perUser[d.Nama] = { segments: [[]], lastTime: 0 }; }
-                let userData = perUser[d.Nama]; let currentTime = new Date(d.Timestamp).getTime();
-                if (userData.lastTime !== 0) {
-                    let lastDate = new Date(userData.lastTime).toDateString(); let currDate = new Date(currentTime).toDateString(); let diffHours = (currentTime - userData.lastTime) / (1000 * 60 * 60);
-                    if (lastDate !== currDate || diffHours > 4) { userData.segments.push([]); }
+                if (!perUser[d.Nama]) { perUser[d.Nama] = { segments: [], lastTime: 0 }; }
+                let userData = perUser[d.Nama]; 
+                let currentTime = new Date(d.Timestamp).getTime();
+                
+                let needNewSegment = false;
+                if (userData.segments.length === 0) {
+                    needNewSegment = true;
+                } else if (userData.lastTime !== 0) {
+                    let lastDate = new Date(userData.lastTime).toDateString(); 
+                    let currDate = new Date(currentTime).toDateString(); 
+                    let diffHours = (currentTime - userData.lastTime) / (1000 * 60 * 60);
+                    if (lastDate !== currDate || diffHours > 4) { needNewSegment = true; }
                 }
-                userData.segments[userData.segments.length - 1].push([parseFloat(d.Latitude), parseFloat(d.Longitude)]); userData.lastTime = currentTime; 
+                
+                if (needNewSegment) {
+                    // Menyimpan tanggal saat garis ini dibuat
+                    let tglFormat = new Date(currentTime).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                    userData.segments.push({ dateText: tglFormat, coords: [] });
+                }
+                
+                userData.segments[userData.segments.length - 1].coords.push([parseFloat(d.Latitude), parseFloat(d.Longitude)]); 
+                userData.lastTime = currentTime; 
             }
         });
 
+        // --- UPGRADE: Memasang Pop-up pada Garis ---
         Object.keys(perUser).forEach(nama => {
-            perUser[nama].segments.forEach(coords => {
-                if (coords.length > 1) {
+            perUser[nama].segments.forEach(seg => {
+                if (seg.coords.length > 1) {
                     const warnaGaris = teknisiSel ? '#007bff' : '#0056b3';
-                    L.polyline(coords, { color: warnaGaris, weight: 5, opacity: 0.8, lineJoin: 'round' }).addTo(polylineGroup);
-                    for (let j = 1; j < coords.length; j++) { totalJarak += calculateDistance(coords[j-1][0], coords[j-1][1], coords[j][0], coords[j][1]); }
+                    const pl = L.polyline(seg.coords, { color: warnaGaris, weight: 5, opacity: 0.8, lineJoin: 'round' }).addTo(polylineGroup);
+                    
+                    // Ini kode yang memunculkan tulisan saat garis diklik
+                    pl.bindPopup(`
+                        <div style="text-align:center; min-width:140px;">
+                            <b style="color:#0084ff; font-size:13px;">🗺️ INFO JALUR</b><br>
+                            <hr style="margin:5px 0; border-color:#ccc;">
+                            <div style="text-align:left; font-size:11px; line-height:1.5;">
+                                <b>Teknisi:</b> ${nama}<br>
+                                <b>Tanggal:</b> ${seg.dateText}
+                            </div>
+                        </div>
+                    `);
+
+                    for (let j = 1; j < seg.coords.length; j++) { 
+                        totalJarak += calculateDistance(seg.coords[j-1][0], seg.coords[j-1][1], seg.coords[j][0], seg.coords[j][1]); 
+                    }
                 }
             });
         });
 
-        document.getElementById('jarakTempuh').innerHTML = `<div class="val" style="color:#0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="color:#999;">JARAK TEMPUH</div>`;
+        document.getElementById('jarakTempuh').innerHTML = `<div class="val" style="color:#0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="color:#999;">TOTAL PREVENTIVE</div>`;
         document.getElementById('totalLaporan').innerHTML = `<div class="val" style="color:#28a745;">📸 ${totalLaporan} Laporan</div><div style="color:#999;">FOTO SURVEY</div>`;
         
         if (filtered.length > 0 || allGamasData.length > 0) {
