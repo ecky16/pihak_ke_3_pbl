@@ -14,8 +14,9 @@ module.exports = async (req, res) => {
     const text = msg.text || "";
 
     try {
-        // 1. CEK WHITELIST
+       // 1. CEK WHITELIST
         const checkUser = await axios.post(GAS_URL, { chatId: chatId, action: 'check_user' });
+        
         if (checkUser.data.status === 'unauthorized') {
             return res.status(200).json({
                 method: 'sendMessage', chat_id: chatId,
@@ -23,11 +24,14 @@ module.exports = async (req, res) => {
             });
         }
 
+        // Tangkap nama dari Google Sheets (jika kosong, pakai nama Telegram)
+        const namaTeknisi = checkUser.data.nama || msg.from.first_name || "Rekan Teknisi";
+
         // 2. MENU START / KEMBALI
         if (text === '/start' || text === 'Kembali') {
             return res.status(200).json({
                 method: 'sendMessage', chat_id: chatId,
-                text: `Selamat Datang Mas Ecky!\n\nKlik **🚀 MULAI SURVEY** untuk monitoring.\nKlik **⚠️ LAPOR GAMAS** untuk input data sejarah gangguan.`,
+                text: `Selamat Datang **${namaTeknisi}**!\n\nKlik **🚀 MULAI SURVEY** untuk monitoring.\nKlik **⚠️ LAPOR GAMAS** untuk input data sejarah gangguan.`,
                 reply_markup: {
                     keyboard: [
                         [{ text: "🚀 MULAI SURVEY", request_location: true }],
