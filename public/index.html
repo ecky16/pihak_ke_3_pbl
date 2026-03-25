@@ -3,182 +3,458 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Input Data Pelanggan</title>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>SIGAP</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <style>
-        body { background: #f4f7f6; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .card { border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .btn-primary { background: #28a745; border: none; padding: 12px; font-weight: bold; }
-        .btn-primary:hover { background: #218838; }
-        .status-gps { font-size: 0.8rem; color: #666; margin-bottom: 15px; cursor: pointer; }
+        html, body { height: 100%; margin: 0; padding: 0; transition: background 0.3s; overflow: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; background: #f0f2f5; }
+        
+        /* --- CSS LOGIN --- */
+        #login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(43,43,43,0.9)), url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=2000&auto=format&fit=crop') center/cover;
+            z-index: 99999; display: flex; justify-content: center; align-items: center;
+            backdrop-filter: blur(5px); transition: opacity 0.5s ease-out;
+        }
+        .login-box {
+            background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 320px;
+            border-top: 5px solid #d32f2f;
+        }
+        .login-box img { height: 110px; margin-bottom: 20px; object-fit: contain; }
+        .login-box h2 { margin: 0 0 5px 0; color: #1a1a1a; font-size: 22px; font-weight: 800; letter-spacing: 1px;}
+        .login-box p { margin: 0 0 25px 0; color: #666; font-size: 13px; }
+        
+        .login-input {
+            width: 100%; height: 48px; padding: 0 14px; margin-bottom: 15px !important; 
+            border: 1px solid #ddd !important; border-radius: 8px !important; box-sizing: border-box; 
+            font-size: 14px; font-family: inherit; outline: none; background: #f9f9f9; transition: 0.3s;
+        }
+        .login-input:focus { border-color: #d32f2f !important; background: #fff; box-shadow: 0 0 0 3px rgba(211,47,47,0.1); }
+        
+        .login-btn {
+            width: 100%; padding: 14px; margin-top: 10px; background: #d32f2f; color: white;
+            border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px;
+            text-transform: uppercase; letter-spacing: 1px; transition: 0.3s;
+        }
+        .login-btn:hover { background: #b71c1c; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(211,47,47,0.3); }
+        .login-btn:active { transform: translateY(0); }
+        #login-error { color: #d32f2f; font-size: 13px; font-weight: bold; display: none; margin-top: 15px; background: #ffebee; padding: 10px; border-radius: 6px; }
+        .version-text { position: absolute; bottom: 15px; right: 20px; color: rgba(255, 255, 255, 0.6); font-size: 12px; letter-spacing: 1px; }
+
+        /* --- CSS DASHBOARD (MOBILE OPTIMIZED) --- */
+        #controls { 
+            padding: 10px 15px; background: #ffffff; border-bottom: 1px solid #ddd; 
+            display: flex; gap: 10px; align-items: center; 
+            z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); transition: 0.3s;
+            overflow-x: auto; white-space: nowrap; flex-wrap: nowrap;
+        }
+        #controls::-webkit-scrollbar { height: 6px; }
+        #controls::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+        .control-group { display:flex; flex-direction:column; gap:2px; min-width: max-content; }
+        .search-group { display: flex; gap: 5px; }
+
+        .brand-container { margin-left: auto; display: flex; align-items: center; min-width: max-content; }
+        .logo-ta { height: 40px; width: auto; object-fit: contain; }
+        #map { flex-grow: 1; width: 100%; height: 100%; background: #e5e3df; z-index: 1; }
+
+        .stats-box { 
+            background: #fff; padding: 6px 10px; border-radius: 8px; border: 1px solid #eee;
+            font-weight: 600; font-size: 11px; color: #333; min-width: 65px; text-align: center; transition: 0.3s;
+        }
+        .stats-box .val { font-size: 13px; font-weight: bold; margin-bottom: 2px; }
+
+        .label-range { font-size: 9px; font-weight: bold; color: #666; margin-bottom: 2px; }
+
+        select, input[type="date"], input[type="text"] { 
+            padding: 6px 10px; border-radius: 6px; border: 1px solid #ccd0d5; background: white; font-size: 12px; transition: 0.3s; 
+        }
+        
+        .btn-action { 
+            padding: 6px 12px; background: #0084ff; color: white; border: none; 
+            border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 12px;
+        }
+        .btn-action:hover { background: #0073e6; }
+        .btn-action:disabled { background: #cccccc; cursor: not-allowed; }
+        .btn-theme { background: #333; color: #fff; }
+        .btn-theme:hover { background: #111; }
+        .btn-cari { background: #28a745; padding: 6px 10px; }
+        .btn-cari:hover { background: #218838; }
+
+        .btn-view {
+            display: block; text-align: center; background: #d32f2f; color: white !important;
+            padding: 8px; border-radius: 6px; text-decoration: none; margin-top: 10px; font-size: 11px; font-weight: bold;
+        }
+
+        /* --- TEMA DARK MODE --- */
+        body.dark-mode { background: #121212; }
+        body.dark-mode #controls { background: #1e1e1e; border-bottom: 1px solid #333; }
+        body.dark-mode .stats-box { background: #2a2a2a; border: 1px solid #444; color: #eee; }
+        body.dark-mode .label-range { color: #aaa; }
+        body.dark-mode select, body.dark-mode input[type="date"], body.dark-mode input[type="text"] { background: #333; color: #fff; border: 1px solid #555; color-scheme: dark; }
+        body.dark-mode .leaflet-popup-content-wrapper, body.dark-mode .leaflet-popup-tip { background: #2a2a2a; color: #eee; border: 1px solid #444; }
+        body.dark-mode .leaflet-popup-content b { color: #64b5f6 !important; } 
     </style>
 </head>
 <body>
-    <div class="container d-flex justify-content-center">
-        <div class="card p-4 w-100" style="max-width: 500px;">
-            <h3 id="main-header" class="text-center mb-4" style="color: #28a745;">INPUT DATA BONEXNET</h3>
-            
-            <div class="mb-3">
-                <label class="form-label">Nama Lengkap</label>
-                <input type="text" id="nama" class="form-control" placeholder="Nama Pelanggan">
-            </div>
 
-            <div class="mb-3">
-                <label class="form-label">Alamat</label>
-                <textarea id="alamat" class="form-control" rows="2" placeholder="Alamat lengkap..."></textarea>
-            </div>
+<div id="login-screen">
+    <div class="login-box">
+        <img src="/Logo TA New.png" alt="Logo TA">
+        <h2>SIGAP</h2>
+        <h2>(Sistem Informasi Gamas & Patroli)</h2>
+        <p>Integrated Command Center</p>
+        
+        <input type="text" id="inputUser" placeholder="Username" class="login-input" onkeypress="if(event.key === 'Enter') prosesLogin()">
+        <input type="password" id="inputPass" placeholder="Password" class="login-input" onkeypress="if(event.key === 'Enter') prosesLogin()">
+        
+        <button onclick="prosesLogin()" class="login-btn">🔓 LOGIN</button>
+        <div id="login-error">⚠️ Username atau Password Salah!</div>
+    </div>
+    <div class="version-text">©SIGAP v.2.4.0 - SA PROBOLINGGO</div>
+</div>
 
-            <div class="mb-3">
-                <label class="form-label">No HP / WhatsApp</label>
-                <input type="text" inputmode="numeric" id="hp" class="form-control" placeholder="08xxx">
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">No KTP (16 Digit)</label>
-                <input type="text" inputmode="numeric" id="ktp" class="form-control" placeholder="Ketik 16 digit no KTP">
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Foto KTP</label>
-                <input type="file" id="foto_ktp" class="form-control" accept="image/*">
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Foto Depan Rumah</label>
-                <input type="file" id="foto_rumah" class="form-control" accept="image/*" multiple>
-            </div>
-            
-            <div id="gps-info" class="status-gps" onclick="ambilLokasi()">📍 Menunggu izin lokasi (Klik untuk refresh)...</div>
-
-            <button class="btn btn-primary w-100" id="btnKirim" onclick="prosesData()">KIRIM SEKARANG</button>
+<div id="controls">
+    <div class="control-group">
+        <small class="label-range">CARI TIKET</small>
+        <div class="search-group">
+            <input type="text" id="inputCariTiket" placeholder="INC47432641..." onkeypress="if(event.key === 'Enter') cariTiket()">
+            <button class="btn-action btn-cari" onclick="cariTiket()">🔍</button>
         </div>
     </div>
 
-    <script>
-        // --- 1. SETTING BRAND & JUDUL ---
-        const path = window.location.pathname; 
-        const params = new URLSearchParams(window.location.search);
-        const brandParam = params.get('brand'); 
-        let brandName = "BONEXNET"; // Default
+    <div class="control-group">
+        <small class="label-range">DARI TANGGAL</small>
+        <input type="date" id="tglMulai" onchange="renderMaps()">
+    </div>
+    <div class="control-group">
+        <small class="label-range">SAMPAI TANGGAL</small>
+        <input type="date" id="tglSelesai" onchange="renderMaps()">
+    </div>
 
-        if (brandParam === 'gumuknet' || path.includes('gumuknet')) {
-            brandName = "GUMUKNET";
-            document.getElementById('main-header').innerText = "INPUT DATA GUMUKNET";
-            document.getElementById('main-header').style.color = "#007bff";
-            document.title = "Input Data GumukNet";
+    <div class="control-group">
+        <small class="label-range">FILTER TEKNISI</small>
+        <select id="selectTeknisi" onchange="renderMaps()">
+            <option value="">-- Semua Teknisi --</option>
+        </select>
+    </div>
+    
+    <div class="control-group">
+        <small class="label-range">AKSI</small>
+        <div style="display:flex; gap:5px;">
+            <button id="btnRefresh" class="btn-action" onclick="fetchData(true)">🔄</button>
+            <button id="btnTheme" class="btn-action btn-theme" onclick="toggleTheme()">🌙</button>
+        </div>
+    </div>
+    
+    <div class="stats-box" id="jarakTempuh">
+        <div class="val" style="color:#0084ff;">📍 0.00 KM</div>
+        <div style="color:#999;">PREVENTIF</div>
+    </div>
+    
+    <div class="stats-box" id="totalLaporan">
+        <div class="val" style="color:#0084ff;">📸 0</div>
+        <div style="color:#999;">SURVEY</div>
+    </div>
+
+    <div class="stats-box" id="totalUsulan">
+        <div class="val" style="color:#28a745;">💡 0</div>
+        <div style="color:#999;">USULAN</div>
+    </div>
+
+    <div class="stats-box" id="totalGamas" style="border-left: 4px solid red;">
+        <div class="val" style="color:#ff4d4d;" id="textGamas">💥 0</div>
+        <div style="color:#999;">GAMAS</div>
+    </div>
+
+    <div class="brand-container">
+        <img src="/Logo TA New.png" alt="Logo Telkom Akses" class="logo-ta">
+    </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
+
+    const googleStreets = L.tileLayer('http://{s}.google.com/vt?lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
+    const googleSatellite = L.tileLayer('http://{s}.google.com/vt?lyrs=s,h&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
+    const googleTerrain = L.tileLayer('http://{s}.google.com/vt?lyrs=p&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
+    
+    let map = L.map('map').setView([-7.7569, 113.2115], 13);
+    googleStreets.addTo(map); 
+
+    let allData = [];
+    let allGamasData = [];
+    let currentSheetName = "DATA";
+    
+    let polylineGroup = L.featureGroup().addTo(map);
+    let markerGroup = L.featureGroup().addTo(map);
+    let gamasGroup = L.featureGroup().addTo(map);
+
+    const baseMaps = { "🗺️ Jalan": googleStreets, "🌍 Satelit": googleSatellite, "⛰️ Terrain": googleTerrain };
+    const overlayMaps = { "🔵 Jalur": polylineGroup, "📸 Laporan": markerGroup, "💥 Gamas": gamasGroup };
+    L.control.layers(baseMaps, overlayMaps, {collapsed: false}).addTo(map);
+
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        const btn = document.getElementById('btnTheme');
+        if(document.body.classList.contains('dark-mode')) {
+            btn.innerHTML = '☀️'; btn.style.background = '#f1c40f'; btn.style.color = '#333';
         } else {
-            document.getElementById('main-header').innerText = "INPUT DATA BONEXNET";
+            btn.innerHTML = '🌙'; btn.style.background = '#333'; btn.style.color = 'white';
         }
+    }
 
-        // --- 2. AMBIL LOKASI GPS ---
-        let koordinat = "Mencari...";
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
 
-        function ambilLokasi() {
-            const statusGps = document.getElementById('gps-info');
-            statusGps.innerText = "📍 Sedang mencari lokasi (Klik untuk refresh)...";
-            statusGps.style.color = "#666";
+    function isDateInRange(targetDate, start, end) {
+        if (!targetDate) return false;
+        const d = new Date(targetDate);
+        const yyyy = d.getFullYear(); const mm = String(d.getMonth() + 1).padStart(2, '0'); const dd = String(d.getDate()).padStart(2, '0');
+        const formatLokal = `${yyyy}-${mm}-${dd}`;
+        if (!start && !end) return true;
+        if (start && !end) return formatLokal >= start;
+        if (!start && end) return formatLokal <= end;
+        return formatLokal >= start && formatLokal <= end;
+    }
 
-            const options = {
-                enableHighAccuracy: true, 
-                timeout: 10000,           
-                maximumAge: 0             
-            };
+    function cleanGamasCoord(latRaw, lonRaw) {
+        let raw = String(latRaw || "") + String(lonRaw || "");
+        let numbersOnly = raw.replace(/[^0-9-]/g, ""); 
+        let lRaw, loRaw;
+        if (numbersOnly.includes("113")) {
+            [lRaw, loRaw] = numbersOnly.split("113"); loRaw = "113" + loRaw;
+        } else if (numbersOnly.includes("112")) {
+            [lRaw, loRaw] = numbersOnly.split("112"); loRaw = "112" + loRaw;
+        } else {
+            return { lat: parseFloat(latRaw), lon: parseFloat(lonRaw) }; 
+        }
+        const formatCoord = (str, isLat) => {
+            if (!str) return 0;
+            let s = str.replace(/-/g, ""); let formatted = isLat ? s.charAt(0) + "." + s.slice(1) : s.slice(0, 3) + "." + s.slice(3);
+            return parseFloat(isLat ? "-" + formatted : formatted);
+        };
+        return { lat: formatCoord(lRaw, true), lon: formatCoord(loRaw, false) };
+    }
 
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (p) => { 
-                        koordinat = `${p.coords.latitude},${p.coords.longitude}`;
-                        statusGps.innerText = "✅ Lokasi Terkunci: " + koordinat;
-                        statusGps.style.color = "green";
-                    },
-                    (err) => { 
-                        let pesan = "Gagal ambil lokasi.";
-                        if(err.code == 1) pesan = "❌ Izin lokasi ditolak browser.";
-                        if(err.code == 2) pesan = "❌ GPS tidak terdeteksi/lemah.";
-                        if(err.code == 3) pesan = "❌ Waktu pencarian lokasi habis.";
-                        
-                        statusGps.innerText = pesan + " Klik untuk coba lagi.";
-                        statusGps.style.color = "red";
-                    }, 
-                    options
-                );
-            } else {
-                statusGps.innerText = "❌ Browser tidak mendukung GPS.";
+    async function fetchData(isManualRefresh = false) {
+        const btn = document.getElementById('btnRefresh');
+        if(isManualRefresh) { btn.innerText = "⏳"; btn.disabled = true; }
+
+        const tglMulai = document.getElementById('tglMulai').value;
+        const sekarang = new Date(); currentSheetName = "DATA"; 
+        if (tglMulai) {
+            const dateSel = new Date(tglMulai);
+            if (dateSel.getMonth() !== sekarang.getMonth() || dateSel.getFullYear() !== sekarang.getFullYear()) {
+                const namaBulan = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                currentSheetName = `DATA_${namaBulan[dateSel.getMonth()]}_${dateSel.getFullYear()}`;
             }
         }
 
-        // --- 3. PROSES KIRIM DATA ---
-        async function prosesData() {
-            const btn = document.getElementById('btnKirim');
-            const fileKtp = document.getElementById('foto_ktp').files[0];
-            const filesRumah = document.getElementById('foto_rumah').files;
+        try {
+            const [resSurvey, resGamas] = await Promise.all([ fetch(`${GAS_URL}?sheetName=${currentSheetName}`), fetch(`${GAS_URL}?sheetName=db_gamas`) ]);
+            allData = await resSurvey.json(); allGamasData = await resGamas.json();
             
-            // --- VALIDASI DENGAN SWEETALERT ---
-            if(!fileKtp) {
-                return Swal.fire('Oops...', 'Foto KTP wajib diupload!', 'warning');
-            }
-            if(filesRumah.length === 0) {
-                return Swal.fire('Oops...', 'Foto rumah minimal 1!', 'warning');
-            }
-            if(!koordinat.includes(",")) {
-                return Swal.fire('Tunggu!', 'Titik lokasi GPS belum terkunci. Pastikan GPS aktif atau klik tulisan "Menunggu izin lokasi".', 'info');
-            }
-
-            btn.disabled = true;
-            btn.innerText = "Sedang Mengupload...";
-
-            // Helper Fungsi Base64 yang sempat hilang
-            const getBase64 = (file) => new Promise(r => {
-                const reader = new FileReader();
-                reader.onload = () => r({ base64: reader.result.split(',')[1], mimeType: file.type });
-                reader.readAsDataURL(file);
+            const select = document.getElementById('selectTeknisi'); const valSebelumnya = select.value;
+            const daftarNama = [...new Set(allData.map(item => item.Nama))].filter(n => n && n !== "Unknown");
+            
+            select.innerHTML = '<option value="">-- Semua Teknisi --</option>';
+            daftarNama.forEach(nama => {
+                const opt = document.createElement('option'); opt.value = nama; opt.innerHTML = nama; select.appendChild(opt);
             });
+            select.value = valSebelumnya;
 
-            try {
-                const dataKtp = await getBase64(fileKtp);
-                const imagesRumah = [];
-                for (let f of filesRumah) {
-                    imagesRumah.push(await getBase64(f));
-                }
+            const keyword = document.getElementById('inputCariTiket').value.trim();
+            if(keyword) { cariTiket(); } else { renderMaps(); }
+            
+        } catch (e) { console.error("Error Fetch:", e); } 
+        finally { if(isManualRefresh) { btn.innerText = "🔄"; btn.disabled = false; } }
+    }
 
-                const payload = {
-                    brand: brandName, 
-                    nama: document.getElementById('nama').value,
-                    alamat: document.getElementById('alamat').value,
-                    no_hp: document.getElementById('hp').value,
-                    no_ktp: document.getElementById('ktp').value,
-                    lokasi: koordinat,
-                    foto_ktp: dataKtp,
-                    images_rumah: imagesRumah
-                };
+    function cariTiket() {
+        const keyword = document.getElementById('inputCariTiket').value.trim().toUpperCase();
+        if (!keyword) { renderMaps(); return; }
+        const foundGamas = allGamasData.filter(g => g.Tiket && g.Tiket.toUpperCase().includes(keyword));
+        if (foundGamas.length === 0) { alert("⚠️ Tiket tidak ditemukan di database Gamas!"); return; }
 
-                const URL_GAS = "https://script.google.com/macros/s/AKfycbyBD4YkuvZCYIRFBlaSbHXz7YAEVZOFypnb6QOmlDyycqUQMeReN6cwgpjgOwU8UX0b4Q/exec";
+        polylineGroup.clearLayers(); markerGroup.clearLayers(); gamasGroup.clearLayers();
+        let bounds = [];
 
-                await fetch(URL_GAS, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify(payload)
-                });
-
-                // Sukses Alert
-                Swal.fire({
-                    title: 'Berhasil!',
-                    text: `INPUT DATA PELANGGAN ${brandName} BERHASIL`,
-                    icon: 'success',
-                    confirmButtonColor: '#28a745'
-                }).then(() => {
-                    location.reload(); 
-                });
-
-            } catch (e) {
-                Swal.fire('Error!', 'Gagal mengirim data: ' + e.message, 'error');
-                btn.disabled = false;
-                btn.innerText = "KIRIM SEKARANG";
+        foundGamas.forEach(g => {
+            const pos = cleanGamasCoord(g.Lat || g.Latitude, g.Lon || g.Longitude);
+            if (!isNaN(pos.lat) && !isNaN(pos.lon) && pos.lat !== 0) {
+                const linkEvidence = g.Link_Evidence || g.Link || g.Photo || "#";
+                const tombolEvidence = linkEvidence !== "#" ? `<a href="${linkEvidence}" target="_blank" class="btn-view" style="background:#d32f2f;">📸 Cek Foto Gamas</a>` : `<p style="color:gray; font-size:10px; margin-top:10px;">(Foto tidak tersedia)</p>`;
+                const marker = L.marker([pos.lat, pos.lon], {
+                    icon: L.divIcon({ html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>', className: 'gamas-marker', iconSize: [30, 30], iconAnchor: [15, 15] })
+                }).addTo(gamasGroup).bindPopup(`
+                    <div style="text-align:center; min-width:160px;">
+                        <b style="color:#d32f2f; font-size:14px;">🔍 PENCARIAN TIKET</b><br>
+                        <hr style="margin:5px 0; border-color:#555;">
+                        <div style="text-align:left; font-size:11px; line-height:1.5;">
+                            <b>Tiket:</b> ${g.Tiket || '-'}<br>
+                            <b>Definisi:</b> ${g.Definisi || '-'}<br>
+                            <b>Penyebab:</b> ${g.Penyebab || '-'}<br>
+                            <b>Tanggal:</b> ${new Date(g.Tanggal).toLocaleDateString('id-ID')}
+                        </div>
+                        ${tombolEvidence}
+                    </div>
+                `);
+                bounds.push([pos.lat, pos.lon]);
+                setTimeout(() => marker.openPopup(), 500);
             }
-        }
+        });
+        document.getElementById('textGamas').innerHTML = `💥 ${foundGamas.length}`;
+        document.getElementById('jarakTempuh').innerHTML = `<div class="val" style="color:#0084ff;">📍 - KM</div><div style="color:#999;">PREVENTIF</div>`;
+        document.getElementById('totalLaporan').innerHTML = `<div class="val" style="color:#0084ff;">📸 -</div><div style="color:#999;">SURVEY</div>`;
+        document.getElementById('totalUsulan').innerHTML = `<div class="val" style="color:#28a745;">💡 -</div><div style="color:#999;">USULAN</div>`;
+        if (bounds.length > 0) { map.fitBounds(bounds, {padding: [50, 50], maxZoom: 18}); }
+    }
 
-        window.onload = ambilLokasi;
-    </script>
+    function renderGamasPoints() {
+        const tglMulai = document.getElementById('tglMulai').value; const tglSelesai = document.getElementById('tglSelesai').value;
+        gamasGroup.clearLayers(); let countGamas = 0; 
+        allGamasData.forEach(g => {
+            if (isDateInRange(g.Tanggal, tglMulai, tglSelesai)) {
+                countGamas++; 
+                const pos = cleanGamasCoord(g.Lat || g.Latitude, g.Lon || g.Longitude);
+                if (!isNaN(pos.lat) && !isNaN(pos.lon) && pos.lat !== 0) {
+                    const linkEvidence = g.Link_Evidence || g.Link || g.Photo || "#";
+                    const tombolEvidence = linkEvidence !== "#" ? `<a href="${linkEvidence}" target="_blank" class="btn-view" style="background:#d32f2f;">📸 Cek Foto Gamas</a>` : `<p style="color:gray; font-size:10px; margin-top:10px;">(Foto tidak tersedia)</p>`;
+                    L.marker([pos.lat, pos.lon], { icon: L.divIcon({ html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>', className: 'gamas-marker', iconSize: [30, 30], iconAnchor: [15, 15] })
+                    }).addTo(gamasGroup).bindPopup(`<div style="text-align:center; min-width:160px;"><b style="color:#d32f2f; font-size:14px;">💥 DATA GAMAS</b><br><hr style="margin:5px 0; border-color:#555;"><div style="text-align:left; font-size:11px; line-height:1.5;"><b>Tiket:</b> ${g.Tiket || '-'}<br><b>Definisi:</b> ${g.Definisi || '-'}<br><b>Penyebab:</b> ${g.Penyebab || '-'}<br><b>Tanggal:</b> ${new Date(g.Tanggal).toLocaleDateString('id-ID')}</div>${tombolEvidence}</div>`);
+                }
+            }
+        });
+        document.getElementById('textGamas').innerHTML = `💥 ${countGamas}`;
+    }
+
+    function renderMaps() {
+        document.getElementById('inputCariTiket').value = "";
+        const teknisiSel = document.getElementById('selectTeknisi').value; const tglMulai = document.getElementById('tglMulai').value; const tglSelesai = document.getElementById('tglSelesai').value;
+        polylineGroup.clearLayers(); markerGroup.clearLayers(); renderGamasPoints(); 
+
+        let filtered = allData.filter(d => isDateInRange(d.Timestamp, tglMulai, tglSelesai));
+        if (teknisiSel) filtered = filtered.filter(d => d.Nama === teknisiSel);
+
+        let totalLaporan = 0; let totalUsulan = 0; let totalJarak = 0; const perUser = {};
+
+        // --- UPGRADE: LOGIKA BACA "KATEGORI" ---
+        filtered.forEach((d, i) => {
+            if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
+                let isUsulan = (d.Kategori && d.Kategori.toUpperCase() === 'USULAN');
+                if (isUsulan) totalUsulan++; else totalLaporan++;
+
+                let lat = d.Latitude, lon = d.Longitude;
+                if (!lat || lat == 0) {
+                    const lastPos = filtered.slice(0, i).reverse().find(r => r.Nama === d.Nama && r.Latitude != 0);
+                    if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
+                }
+                
+                if (lat && lat != 0) {
+                    const tglSurvey = d.Timestamp ? new Date(d.Timestamp).toLocaleString('id-ID', {day:'numeric', month:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '-';
+                    
+                    if (isUsulan) {
+                        // WARNA MARKER HIJAU
+                        const popupMsg = `<div style="text-align:center; min-width:160px;"><b style="color:#28a745; font-size:14px;">💡 USULAN TIF</b><br><hr style="margin:5px 0; border-color:#555;"><div style="text-align:left; font-size:11px; line-height:1.5;"><b>Teknisi:</b> ${d.Nama || '-'}<br><b>Usulan:</b> ${d.Keterangan || '-'}<br><b>Waktu:</b> ${tglSurvey}</div><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#28a745;">📂 Buka Foto</a></div>`;
+                        L.marker([lat, lon], { icon: L.divIcon({ html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px #28a745);">💡</div>', className: 'usulan-marker', iconSize: [30, 30], iconAnchor: [15, 15] })
+                        }).addTo(markerGroup).bindPopup(popupMsg);
+                    } else {
+                        // WARNA MARKER BIRU
+                        const popupMsg = `<div style="text-align:center; min-width:160px;"><b style="color:#0084ff; font-size:14px;">📸 TEMUAN SURVEY</b><br><hr style="margin:5px 0; border-color:#555;"><div style="text-align:left; font-size:11px; line-height:1.5;"><b>Teknisi:</b> ${d.Nama || '-'}<br><b>Keterangan:</b> ${d.Keterangan || '-'}<br><b>Waktu:</b> ${tglSurvey}</div><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc;">📂 Buka Telegram</a></div>`;
+                        L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg);
+                    }
+                }
+            }
+
+            if (d.Latitude && d.Longitude && d.Latitude != 0) {
+                if (!perUser[d.Nama]) { perUser[d.Nama] = { segments: [], lastTime: 0 }; }
+                let userData = perUser[d.Nama]; 
+                let currentTime = new Date(d.Timestamp).getTime();
+                
+                let needNewSegment = false;
+                if (userData.segments.length === 0) {
+                    needNewSegment = true;
+                } else if (userData.lastTime !== 0) {
+                    let lastDate = new Date(userData.lastTime).toDateString(); 
+                    let currDate = new Date(currentTime).toDateString(); 
+                    let diffHours = (currentTime - userData.lastTime) / (1000 * 60 * 60);
+                    if (lastDate !== currDate || diffHours > 4) { needNewSegment = true; }
+                }
+                
+                if (needNewSegment) {
+                    let tglFormat = new Date(currentTime).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                    userData.segments.push({ dateText: tglFormat, coords: [] });
+                }
+                
+                userData.segments[userData.segments.length - 1].coords.push([parseFloat(d.Latitude), parseFloat(d.Longitude)]); 
+                userData.lastTime = currentTime; 
+            }
+        });
+
+        // Memasang Pop-up pada Garis
+        Object.keys(perUser).forEach(nama => {
+            perUser[nama].segments.forEach(seg => {
+                if (seg.coords.length > 1) {
+                    const warnaGaris = teknisiSel ? '#007bff' : '#0056b3';
+                    const pl = L.polyline(seg.coords, { color: warnaGaris, weight: 5, opacity: 0.8, lineJoin: 'round' }).addTo(polylineGroup);
+                    
+                    pl.bindPopup(`
+                        <div style="text-align:center; min-width:140px;">
+                            <b style="color:#0084ff; font-size:13px;">🗺️ INFO JALUR</b><br>
+                            <hr style="margin:5px 0; border-color:#ccc;">
+                            <div style="text-align:left; font-size:11px; line-height:1.5;">
+                                <b>Teknisi:</b> ${nama}<br>
+                                <b>Tanggal:</b> ${seg.dateText}
+                            </div>
+                        </div>
+                    `);
+
+                    for (let j = 1; j < seg.coords.length; j++) { 
+                        totalJarak += calculateDistance(seg.coords[j-1][0], seg.coords[j-1][1], seg.coords[j][0], seg.coords[j][1]); 
+                    }
+                }
+            });
+        });
+
+        document.getElementById('jarakTempuh').innerHTML = `<div class="val" style="color:#0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="color:#999;">PREVENTIF</div>`;
+        document.getElementById('totalLaporan').innerHTML = `<div class="val" style="color:#0084ff;">📸 ${totalLaporan}</div><div style="color:#999;">SURVEY</div>`;
+        document.getElementById('totalUsulan').innerHTML = `<div class="val" style="color:#28a745;">💡 ${totalUsulan}</div><div style="color:#999;">USULAN</div>`;
+        
+        if (filtered.length > 0 || allGamasData.length > 0) {
+            const combinedBounds = L.featureGroup([polylineGroup, markerGroup, gamasGroup]).getBounds();
+            if (combinedBounds.isValid()) map.fitBounds(combinedBounds, {padding: [50, 50]});
+        }
+    }
+
+    const USER_ADMIN = "admin"; const PASS_ADMIN = "anjay"; 
+
+    function prosesLogin() {
+        const user = document.getElementById('inputUser').value; const pass = document.getElementById('inputPass').value;
+        const screen = document.getElementById('login-screen'); const error = document.getElementById('login-error');
+
+        if (user === USER_ADMIN && pass === PASS_ADMIN) {
+            screen.style.opacity = '0'; setTimeout(() => { screen.style.display = 'none'; }, 500);
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('tglMulai').value = today; document.getElementById('tglSelesai').value = today;
+            fetchData(); 
+            setInterval(() => { if (currentSheetName === "DATA" && document.visibilityState === 'visible') { fetchData(); } }, 60000); 
+        } else {
+            error.style.display = 'block'; document.querySelector('.login-box').style.animation = 'shake 0.5s';
+            setTimeout(() => { document.querySelector('.login-box').style.animation = '' }, 500);
+        }
+    }
+</script>
+
 </body>
 </html>
