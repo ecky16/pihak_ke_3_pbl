@@ -28,18 +28,9 @@
         .login-box p { margin: 0 0 25px 0; color: #666; font-size: 13px; }
         
         .login-input {
-            width: 100%; 
-            height: 48px; 
-            padding: 0 14px; 
-            margin-bottom: 15px !important; 
-            border: 1px solid #ddd !important; 
-            border-radius: 8px !important; 
-            box-sizing: border-box; 
-            font-size: 14px; 
-            font-family: inherit; 
-            outline: none;
-            background: #f9f9f9; 
-            transition: 0.3s;
+            width: 100%; height: 48px; padding: 0 14px; margin-bottom: 15px !important; 
+            border: 1px solid #ddd !important; border-radius: 8px !important; box-sizing: border-box; 
+            font-size: 14px; font-family: inherit; outline: none; background: #f9f9f9; transition: 0.3s;
         }
         .login-input:focus { border-color: #d32f2f !important; background: #fff; box-shadow: 0 0 0 3px rgba(211,47,47,0.1); }
         
@@ -72,7 +63,7 @@
 
         .stats-box { 
             background: #fff; padding: 6px 10px; border-radius: 8px; border: 1px solid #eee;
-            font-weight: 600; font-size: 11px; color: #333; min-width: 80px; text-align: center; transition: 0.3s;
+            font-weight: 600; font-size: 11px; color: #333; min-width: 65px; text-align: center; transition: 0.3s;
         }
         .stats-box .val { font-size: 13px; font-weight: bold; margin-bottom: 2px; }
 
@@ -115,7 +106,7 @@
         <img src="/Logo TA New.png" alt="Logo TA">
         <h2>SIGAP</h2>
         <h2>(Sistem Informasi Gamas & Patroli)</h2>
-        <p>Integrated Command Center: Preventif, Gamas & Patroli Jaringan</p>
+        <p>Integrated Command Center</p>
         
         <input type="text" id="inputUser" placeholder="Username" class="login-input" onkeypress="if(event.key === 'Enter') prosesLogin()">
         <input type="password" id="inputPass" placeholder="Password" class="login-input" onkeypress="if(event.key === 'Enter') prosesLogin()">
@@ -123,14 +114,14 @@
         <button onclick="prosesLogin()" class="login-btn">🔓 LOGIN</button>
         <div id="login-error">⚠️ Username atau Password Salah!</div>
     </div>
-    <div class="version-text">©SIGAP v.2.3.0 - SA PROBOLINGGO</div>
+    <div class="version-text">©SIGAP v.2.4.0 - SA PROBOLINGGO</div>
 </div>
 
 <div id="controls">
     <div class="control-group">
-        <small class="label-range">CARI NOMOR TIKET</small>
+        <small class="label-range">CARI TIKET</small>
         <div class="search-group">
-            <input type="text" id="inputCariTiket" placeholder="Misal: INC47432641..." onkeypress="if(event.key === 'Enter') cariTiket()">
+            <input type="text" id="inputCariTiket" placeholder="INC47432641..." onkeypress="if(event.key === 'Enter') cariTiket()">
             <button class="btn-action btn-cari" onclick="cariTiket()">🔍</button>
         </div>
     </div>
@@ -161,17 +152,22 @@
     
     <div class="stats-box" id="jarakTempuh">
         <div class="val" style="color:#0084ff;">📍 0.00 KM</div>
-        <div style="color:#999;">TOTAL PREVENTIVE</div>
+        <div style="color:#999;">PREVENTIF</div>
     </div>
     
     <div class="stats-box" id="totalLaporan">
-        <div class="val" style="color:#28a745;">📸 0 Laporan</div>
-        <div style="color:#999;">FOTO SURVEY</div>
+        <div class="val" style="color:#0084ff;">📸 0</div>
+        <div style="color:#999;">SURVEY</div>
+    </div>
+
+    <div class="stats-box" id="totalUsulan">
+        <div class="val" style="color:#28a745;">💡 0</div>
+        <div style="color:#999;">USULAN</div>
     </div>
 
     <div class="stats-box" id="totalGamas" style="border-left: 4px solid red;">
         <div class="val" style="color:#ff4d4d;" id="textGamas">💥 0</div>
-        <div style="color:#999;">TOTAL GAMAS</div>
+        <div style="color:#999;">GAMAS</div>
     </div>
 
     <div class="brand-container">
@@ -202,7 +198,7 @@
     let gamasGroup = L.featureGroup().addTo(map);
 
     const baseMaps = { "🗺️ Jalan": googleStreets, "🌍 Satelit": googleSatellite, "⛰️ Terrain": googleTerrain };
-    const overlayMaps = { "🔵 Jalur": polylineGroup, "📸 Survey": markerGroup, "💥 Gamas": gamasGroup };
+    const overlayMaps = { "🔵 Jalur": polylineGroup, "📸 Laporan": markerGroup, "💥 Gamas": gamasGroup };
     L.control.layers(baseMaps, overlayMaps, {collapsed: false}).addTo(map);
 
     function toggleTheme() {
@@ -319,8 +315,9 @@
             }
         });
         document.getElementById('textGamas').innerHTML = `💥 ${foundGamas.length}`;
-        document.getElementById('jarakTempuh').innerHTML = `<div class="val" style="color:#0084ff;">📍 - KM</div><div style="color:#999;">TOTAL PREVENTIVE</div>`;
-        document.getElementById('totalLaporan').innerHTML = `<div class="val" style="color:#28a745;">📸 - Laporan</div><div style="color:#999;">FOTO SURVEY</div>`;
+        document.getElementById('jarakTempuh').innerHTML = `<div class="val" style="color:#0084ff;">📍 - KM</div><div style="color:#999;">PREVENTIF</div>`;
+        document.getElementById('totalLaporan').innerHTML = `<div class="val" style="color:#0084ff;">📸 -</div><div style="color:#999;">SURVEY</div>`;
+        document.getElementById('totalUsulan').innerHTML = `<div class="val" style="color:#28a745;">💡 -</div><div style="color:#999;">USULAN</div>`;
         if (bounds.length > 0) { map.fitBounds(bounds, {padding: [50, 50], maxZoom: 18}); }
     }
 
@@ -350,20 +347,33 @@
         let filtered = allData.filter(d => isDateInRange(d.Timestamp, tglMulai, tglSelesai));
         if (teknisiSel) filtered = filtered.filter(d => d.Nama === teknisiSel);
 
-        let totalLaporan = 0; let totalJarak = 0; const perUser = {};
+        let totalLaporan = 0; let totalUsulan = 0; let totalJarak = 0; const perUser = {};
 
-        // --- UPGRADE: Menyimpan format tanggal untuk Pop-Up Garis ---
+        // --- UPGRADE: LOGIKA BACA "KATEGORI" ---
         filtered.forEach((d, i) => {
             if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
-                totalLaporan++; let lat = d.Latitude, lon = d.Longitude;
+                let isUsulan = (d.Kategori && d.Kategori.toUpperCase() === 'USULAN');
+                if (isUsulan) totalUsulan++; else totalLaporan++;
+
+                let lat = d.Latitude, lon = d.Longitude;
                 if (!lat || lat == 0) {
                     const lastPos = filtered.slice(0, i).reverse().find(r => r.Nama === d.Nama && r.Latitude != 0);
                     if (lastPos) { lat = lastPos.Latitude; lon = lastPos.Longitude; }
                 }
+                
                 if (lat && lat != 0) {
                     const tglSurvey = d.Timestamp ? new Date(d.Timestamp).toLocaleString('id-ID', {day:'numeric', month:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '-';
-                    const popupMsg = `<div style="text-align:center; min-width:160px;"><b style="color:#0084ff; font-size:14px;">📸 TEMUAN SURVEY</b><br><hr style="margin:5px 0; border-color:#555;"><div style="text-align:left; font-size:11px; line-height:1.5;"><b>Teknisi:</b> ${d.Nama || '-'}<br><b>Keterangan:</b> ${d.Keterangan || '-'}<br><b>Waktu:</b> ${tglSurvey}</div><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc;">📂 Buka Telegram</a></div>`;
-                    L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg);
+                    
+                    if (isUsulan) {
+                        // WARNA MARKER HIJAU
+                        const popupMsg = `<div style="text-align:center; min-width:160px;"><b style="color:#28a745; font-size:14px;">💡 USULAN TIF</b><br><hr style="margin:5px 0; border-color:#555;"><div style="text-align:left; font-size:11px; line-height:1.5;"><b>Teknisi:</b> ${d.Nama || '-'}<br><b>Usulan:</b> ${d.Keterangan || '-'}<br><b>Waktu:</b> ${tglSurvey}</div><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#28a745;">📂 Buka Foto</a></div>`;
+                        L.marker([lat, lon], { icon: L.divIcon({ html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px #28a745);">💡</div>', className: 'usulan-marker', iconSize: [30, 30], iconAnchor: [15, 15] })
+                        }).addTo(markerGroup).bindPopup(popupMsg);
+                    } else {
+                        // WARNA MARKER BIRU
+                        const popupMsg = `<div style="text-align:center; min-width:160px;"><b style="color:#0084ff; font-size:14px;">📸 TEMUAN SURVEY</b><br><hr style="margin:5px 0; border-color:#555;"><div style="text-align:left; font-size:11px; line-height:1.5;"><b>Teknisi:</b> ${d.Nama || '-'}<br><b>Keterangan:</b> ${d.Keterangan || '-'}<br><b>Waktu:</b> ${tglSurvey}</div><a href="${d.Photo_URL}" target="_blank" class="btn-view" style="background:#0088cc;">📂 Buka Telegram</a></div>`;
+                        L.marker([lat, lon]).addTo(markerGroup).bindPopup(popupMsg);
+                    }
                 }
             }
 
@@ -383,7 +393,6 @@
                 }
                 
                 if (needNewSegment) {
-                    // Menyimpan tanggal saat garis ini dibuat
                     let tglFormat = new Date(currentTime).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
                     userData.segments.push({ dateText: tglFormat, coords: [] });
                 }
@@ -393,17 +402,16 @@
             }
         });
 
-        // --- UPGRADE: Memasang Pop-up pada Garis ---
+        // Memasang Pop-up pada Garis
         Object.keys(perUser).forEach(nama => {
             perUser[nama].segments.forEach(seg => {
                 if (seg.coords.length > 1) {
                     const warnaGaris = teknisiSel ? '#007bff' : '#0056b3';
                     const pl = L.polyline(seg.coords, { color: warnaGaris, weight: 5, opacity: 0.8, lineJoin: 'round' }).addTo(polylineGroup);
                     
-                    // Ini kode yang memunculkan tulisan saat garis diklik
                     pl.bindPopup(`
                         <div style="text-align:center; min-width:140px;">
-                            <b style="color:#0084ff; font-size:13px;">🗺️ INFO JALUR PATROLI</b><br>
+                            <b style="color:#0084ff; font-size:13px;">🗺️ INFO JALUR</b><br>
                             <hr style="margin:5px 0; border-color:#ccc;">
                             <div style="text-align:left; font-size:11px; line-height:1.5;">
                                 <b>Teknisi:</b> ${nama}<br>
@@ -419,8 +427,9 @@
             });
         });
 
-        document.getElementById('jarakTempuh').innerHTML = `<div class="val" style="color:#0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="color:#999;">TOTAL PREVENTIVE</div>`;
-        document.getElementById('totalLaporan').innerHTML = `<div class="val" style="color:#28a745;">📸 ${totalLaporan} Laporan</div><div style="color:#999;">FOTO SURVEY</div>`;
+        document.getElementById('jarakTempuh').innerHTML = `<div class="val" style="color:#0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="color:#999;">PREVENTIF</div>`;
+        document.getElementById('totalLaporan').innerHTML = `<div class="val" style="color:#0084ff;">📸 ${totalLaporan}</div><div style="color:#999;">SURVEY</div>`;
+        document.getElementById('totalUsulan').innerHTML = `<div class="val" style="color:#28a745;">💡 ${totalUsulan}</div><div style="color:#999;">USULAN</div>`;
         
         if (filtered.length > 0 || allGamasData.length > 0) {
             const combinedBounds = L.featureGroup([polylineGroup, markerGroup, gamasGroup]).getBounds();
