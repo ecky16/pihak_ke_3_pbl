@@ -43,75 +43,75 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 3. INSTRUKSI KIRIM FOTO
-        if (text === '📸 KIRIM LAPORAN FOTO') {
+        // --- LOGIKA BARU: TOMBOL PILIHAN MODE ---
+        if (text === '📸 FOTO SURVEY' || text === '💡 FOTO USULAN') {
+            const mode = text.includes('USULAN') ? 'Usulan' : 'Survey';
+            await axios.post(GAS_URL, { chatId, action: 'set_mode', mode: mode });
             return res.status(200).json({
                 method: 'sendMessage', chat_id: chatId,
-                text: '📸 **INSTRUKSI FOTO TEMUAN:**\n\n1. Klik ikon 📎 (**Klip Kertas**) di pojok kanan bawah.\n2. Pilih ikon 📸 (**Kamera**) untuk jepret langsung.\n3. **PENTING:** Jangan kirim foto dari Galeri!\n\n*Silakan kirim fotonya sekarang...*',
+                text: `✅ Mode **${mode.toUpperCase()}** aktif!\n\nSilakan jepret foto langsung dari kamera (jangan dari galeri).`,
                 parse_mode: 'Markdown'
             });
         }
 
-        // 4. TERIMA LOKASI
+        // 3. TERIMA LIVE LOCATION
         if (msg.location) {
-            axios.post(GAS_URL, { 
-                chatId, lat: msg.location.latitude, lon: msg.location.longitude, 
-                action: message ? 'start_survey' : 'tracking' 
+            axios.post(GAS_URL, {
+                chatId: chatId, lat: msg.location.latitude, lon: msg.location.longitude,
+                action: message ? 'start_survey' : 'tracking'
             }).catch(e => console.error(e.message));
             
             if (message) {
                 return res.status(200).json({
                     method: 'sendMessage', chat_id: chatId,
-                    text: `✅ **Survey Aktif!**\n\n**PENTING:** Klik ikon 📎 (Paperclip) > Location > **Share My Live Location for 8 Hours**.\n\n*Foto baru bisa dikirim SETELAH Live Location aktif.*`,
-                    reply_markup: { keyboard: [[{ text: "📸 KIRIM LAPORAN FOTO" }], [{ text: "🏁 SELESAI" }]], resize_keyboard: true },
-                    parse_mode: 'Markdown'
+                    text: `✅ **Survey Aktif!**\n\n**PENTING:** Klik ikon 📎 (Paperclip) > Location > **Share My Live Location for 8 Hours**.\n\nPilih jenis laporan di bawah sebelum mengirim foto:`,
+                    reply_markup: {
+                        keyboard: [
+                            [{ text: "📸 FOTO SURVEY" }, { text: "💡 FOTO USULAN" }],
+                            [{ text: "🏁 SELESAI" }]
+                        ],
+                        resize_keyboard: true
+                    }, parse_mode: 'Markdown'
                 });
             }
             return res.status(200).send('OK');
         }
 
-        // 5. TERIMA FOTO (SATPAM LIVE) - SUDAH DI-UPGRADE BIAR NGGAK ERROR /1
+        // 5. TERIMA FOTO
         if (msg.photo) {
             const statusRes = await axios.post(GAS_URL, { chatId, action: 'check_status_detail' });
+            
             if (statusRes.data.status === 'WAIT_LIVE') {
-                return res.status(200).json({ 
-                    method: 'sendMessage', chat_id: chatId, 
-                    text: '🚫 **Foto Ditolak!**\n\nAktifkan **Live Location** dulu mas.' 
+                return res.status(200).json({
+                    method: 'sendMessage', chat_id: chatId,
+                    text: '🚫 **Foto Ditolak!**\n\nAktifkan **Live Location** dulu mas.'
                 });
             }
             
             const photoId = msg.photo[msg.photo.length - 1].file_id;
-            
             try {
-                // Tunggu foto berhasil dikirim ke channel
-                const forward = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, { 
-                    chat_id: CHANNEL_ID, photo: photoId, caption: `Laporan dari ID: ${chatId}` 
+                const forward = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
+                    chat_id: CHANNEL_ID, photo: photoId, caption: `Laporan dari: ${namaTeknisi}`
                 });
-                
-                // Ambil ID fotonya, buang -100 dari ID Channel, rakit URL
                 const msgIdFromChannel = forward.data.result.message_id;
-                const cleanChannelId = CHANNEL_ID.replace('-100', '');
-                const photoUrl = `https://t.me/c/${cleanChannelId}/${msgIdFromChannel}`;
+                const photoUrl = `https://t.me/c/${CHANNEL_ID.replace('-100', '')}/${msgIdFromChannel}`;
                 
-                // Simpan ke Google Sheets
+                // Simpan ke Google Sheets (Kategori mode ditangani GAS)
                 await axios.post(GAS_URL, { chatId, foto: photoUrl, action: 'temp_photo' });
                 
-                // Balas ke teknisi
                 return res.status(200).json({ 
                     method: 'sendMessage', chat_id: chatId, 
-                    text: '📸 **Foto diterima!**\n\nMasukkan **keterangan temuan** (jangan jalan dulu!):' 
+                    text: `📸 **Foto diterima!**\n\nMasukkan **keterangan** (jangan jalan dulu!):` 
                 });
             } catch (error) {
-                console.error("Gagal proses foto:", error.message);
-                return res.status(200).json({ 
-                    method: 'sendMessage', chat_id: chatId, 
-                    text: '❌ **Gagal upload foto!**\nSilakan coba kirim ulang.' 
+                return res.status(200).json({
+                    method: 'sendMessage', chat_id: chatId, text: '❌ **Gagal upload foto!**\nSilakan coba kirim ulang.'
                 });
             }
         }
 
-        // 6. UPDATE KETERANGAN
-        if (text && !text.includes('/') && text !== '🏁 SELESAI' && text !== '📸 KIRIM LAPORAN FOTO') {
+        // 6. TERIMA KETERANGAN TEKS
+        if (text && !text.includes('/') && text !== '🏁 SELESAI' && text !== '📸 FOTO SURVEY' && text !== '💡 FOTO USULAN') {
             const responseMsg = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
                 chat_id: chatId, text: '⏳ Sedang menyimpan keterangan...'
             });
@@ -136,10 +136,17 @@ module.exports = async (req, res) => {
             return res.status(200).json({
                 method: 'sendMessage', chat_id: chatId,
                 text: 'Tugas Selesai! ✅\n\nSistem berhenti mencatat lokasi. matikan live location agar hemat baterai.',
-                reply_markup: { keyboard: [[{ text: "🚀 MULAI SURVEY", request_location: true }]], resize_keyboard: true }
+                reply_markup: {
+                    keyboard: [
+                        [{ text: "🚀 MULAI SURVEY", request_location: true }],
+                        [{ text: "⚠️ LAPOR GAMAS", web_app: { url: WEB_APP_URL } }]
+                    ],
+                    resize_keyboard: true
+                }
             });
         }
-
-    } catch (e) { console.error(e.message); }
+    } catch (e) {
+        console.error(e.message);
+    }
     res.status(200).send('OK');
 };
