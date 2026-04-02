@@ -330,7 +330,7 @@
                 const pos = cleanGamasCoord(g.Lat || g.Latitude, g.Lon || g.Longitude);
                 if (!isNaN(pos.lat) && !isNaN(pos.lon) && pos.lat !== 0) {
                     const linkEvidence = g.Link_Evidence || g.Link || g.Photo || "#";
-                    const tombolEvidence = linkEvidence !== "#" ? `<a href="${linkEvidence}" target="_blank" class="btn-view" style="background:#d32f2f;">📸 Cek Foto Gamas</a>` : `<p style="color:gray; font-size:10px; margin-top:10px;">(Foto tidak tersedia)</p>`;
+                    const tombolEvidence = linkEvidence !== "#" ? `<a href="${linkEvidence}" target="_blank" class="btn-view" style="background:#d32f2f;">📸 Cek Foto Gamas</a>` : `<p style="color:gray; font-size:10px; margin-top:10px;">(Foto kamu tidak tersedia)</p>`;
                     L.marker([pos.lat, pos.lon], { icon: L.divIcon({ html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>', className: 'gamas-marker', iconSize: [30, 30], iconAnchor: [15, 15] })
                     }).addTo(gamasGroup).bindPopup(`<div style="text-align:center; min-width:160px;"><b style="color:#d32f2f; font-size:14px;">💥 DATA GAMAS</b><br><hr style="margin:5px 0; border-color:#555;"><div style="text-align:left; font-size:11px; line-height:1.5;"><b>Tiket:</b> ${g.Tiket || '-'}<br><b>Definisi:</b> ${g.Definisi || '-'}<br><b>Penyebab:</b> ${g.Penyebab || '-'}<br><b>Tanggal:</b> ${new Date(g.Tanggal).toLocaleDateString('id-ID')}</div>${tombolEvidence}</div>`);
                 }
@@ -339,7 +339,7 @@
         document.getElementById('textGamas').innerHTML = `💥 ${countGamas}`;
     }
 
-   function renderMaps() {
+    function renderMaps() {
         document.getElementById('inputCariTiket').value = "";
         const teknisiSel = document.getElementById('selectTeknisi').value; 
         const tglMulai = document.getElementById('tglMulai').value; 
@@ -453,42 +453,7 @@
         }
     }
 
-        // Memasang Pop-up pada Garis
-        Object.keys(perUser).forEach(nama => {
-            perUser[nama].segments.forEach(seg => {
-                if (seg.coords.length > 1) {
-                    const warnaGaris = teknisiSel ? '#007bff' : '#0056b3';
-                    const pl = L.polyline(seg.coords, { color: warnaGaris, weight: 5, opacity: 0.8, lineJoin: 'round' }).addTo(polylineGroup);
-                    
-                    pl.bindPopup(`
-                        <div style="text-align:center; min-width:140px;">
-                            <b style="color:#0084ff; font-size:13px;">🗺️ INFO JALUR</b><br>
-                            <hr style="margin:5px 0; border-color:#ccc;">
-                            <div style="text-align:left; font-size:11px; line-height:1.5;">
-                                <b>Teknisi:</b> ${nama}<br>
-                                <b>Tanggal:</b> ${seg.dateText}
-                            </div>
-                        </div>
-                    `);
-
-                    for (let j = 1; j < seg.coords.length; j++) { 
-                        totalJarak += calculateDistance(seg.coords[j-1][0], seg.coords[j-1][1], seg.coords[j][0], seg.coords[j][1]); 
-                    }
-                }
-            });
-        });
-
-        document.getElementById('jarakTempuh').innerHTML = `<div class="val" style="color:#0084ff;">📍 ${totalJarak.toFixed(2)} KM</div><div style="color:#999;">PREVENTIF</div>`;
-        document.getElementById('totalLaporan').innerHTML = `<div class="val" style="color:#0084ff;">📸 ${totalLaporan}</div><div style="color:#999;">SURVEY</div>`;
-        document.getElementById('totalUsulan').innerHTML = `<div class="val" style="color:#28a745;">💡 ${totalUsulan}</div><div style="color:#999;">USULAN</div>`;
-        
-        if (filtered.length > 0 || allGamasData.length > 0) {
-            const combinedBounds = L.featureGroup([polylineGroup, markerGroup, gamasGroup]).getBounds();
-            if (combinedBounds.isValid()) map.fitBounds(combinedBounds, {padding: [50, 50]});
-        }
-    }
-
-   const USER_ADMIN = "admin"; const PASS_ADMIN = "anjay"; 
+    const USER_ADMIN = "admin"; const PASS_ADMIN = "anjay"; 
 
     function prosesLogin() {
         const user = document.getElementById('inputUser').value; const pass = document.getElementById('inputPass').value;
