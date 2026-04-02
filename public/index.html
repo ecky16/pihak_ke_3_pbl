@@ -247,11 +247,13 @@
         return { lat: formatCoord(lRaw, true), lon: formatCoord(loRaw, false) };
     }
 
+    // 🔥 FITUR BARU: MENGIRIM TANGGAL KE SERVER AGAR LOADING LEBIH CEPAT
     async function fetchData(isManualRefresh = false) {
         const btn = document.getElementById('btnRefresh');
         if(isManualRefresh) { btn.innerText = "⏳"; btn.disabled = true; }
 
         const tglMulai = document.getElementById('tglMulai').value;
+        const tglSelesai = document.getElementById('tglSelesai').value;
         const sekarang = new Date(); currentSheetName = "DATA"; 
         if (tglMulai) {
             const dateSel = new Date(tglMulai);
@@ -262,7 +264,16 @@
         }
 
         try {
-            const [resSurvey, resGamas] = await Promise.all([ fetch(`${GAS_URL}?sheetName=${currentSheetName}`), fetch(`${GAS_URL}?sheetName=db_gamas`) ]);
+            // URL akan otomatis menambah start dan end
+            let urlSurvey = `${GAS_URL}?sheetName=${currentSheetName}`;
+            if (tglMulai && tglSelesai) {
+                urlSurvey += `&start=${tglMulai}&end=${tglSelesai}`;
+            }
+
+            const [resSurvey, resGamas] = await Promise.all([ 
+                fetch(urlSurvey), 
+                fetch(`${GAS_URL}?sheetName=db_gamas`) 
+            ]);
             allData = await resSurvey.json(); allGamasData = await resGamas.json();
             
             const select = document.getElementById('selectTeknisi'); const valSebelumnya = select.value;
@@ -330,7 +341,7 @@
                 const pos = cleanGamasCoord(g.Lat || g.Latitude, g.Lon || g.Longitude);
                 if (!isNaN(pos.lat) && !isNaN(pos.lon) && pos.lat !== 0) {
                     const linkEvidence = g.Link_Evidence || g.Link || g.Photo || "#";
-                    const tombolEvidence = linkEvidence !== "#" ? `<a href="${linkEvidence}" target="_blank" class="btn-view" style="background:#d32f2f;">📸 Cek Foto Gamas</a>` : `<p style="color:gray; font-size:10px; margin-top:10px;">(Foto kamu tidak tersedia)</p>`;
+                    const tombolEvidence = linkEvidence !== "#" ? `<a href="${linkEvidence}" target="_blank" class="btn-view" style="background:#d32f2f;">📸 Cek Foto Gamas</a>` : `<p style="color:gray; font-size:10px; margin-top:10px;">(Foto tidak tersedia)</p>`;
                     L.marker([pos.lat, pos.lon], { icon: L.divIcon({ html: '<div style="font-size: 24px; filter: drop-shadow(0 0 5px red);">💥</div>', className: 'gamas-marker', iconSize: [30, 30], iconAnchor: [15, 15] })
                     }).addTo(gamasGroup).bindPopup(`<div style="text-align:center; min-width:160px;"><b style="color:#d32f2f; font-size:14px;">💥 DATA GAMAS</b><br><hr style="margin:5px 0; border-color:#555;"><div style="text-align:left; font-size:11px; line-height:1.5;"><b>Tiket:</b> ${g.Tiket || '-'}<br><b>Definisi:</b> ${g.Definisi || '-'}<br><b>Penyebab:</b> ${g.Penyebab || '-'}<br><b>Tanggal:</b> ${new Date(g.Tanggal).toLocaleDateString('id-ID')}</div>${tombolEvidence}</div>`);
                 }
