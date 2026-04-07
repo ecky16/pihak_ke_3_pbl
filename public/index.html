@@ -427,6 +427,10 @@
                     if (lastPosUser[d.Nama]) {
                         lat = lastPosUser[d.Nama].lat;
                         lon = lastPosUser[d.Nama].lon;
+                        
+                        // --- FIX USULAN: Simpan koordinat pinjaman ke memori agar terbaca di List Modal ---
+                        d.Latitude = lat;
+                        d.Longitude = lon;
                     }
                 }
                 
@@ -536,7 +540,8 @@
             
             let listHtml = ''; let count = 0;
             currentFilteredData.forEach(d => {
-                if (d.Kategori && d.Kategori.toUpperCase() === 'USULAN' && d.Latitude && d.Latitude !== 0) {
+                // FIX USULAN: Cek pakai parseFloat agar kordinat 0 tidak memblokir
+                if (d.Kategori && d.Kategori.toUpperCase() === 'USULAN' && d.Latitude && parseFloat(d.Latitude) !== 0) {
                     count++;
                     const tgl = d.Timestamp ? new Date(d.Timestamp).toLocaleString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : '-';
                     listHtml += `
