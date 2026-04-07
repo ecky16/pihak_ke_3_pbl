@@ -97,6 +97,40 @@
         body.dark-mode select, body.dark-mode input[type="date"], body.dark-mode input[type="text"] { background: #333; color: #fff; border: 1px solid #555; color-scheme: dark; }
         body.dark-mode .leaflet-popup-content-wrapper, body.dark-mode .leaflet-popup-tip { background: #2a2a2a; color: #eee; border: 1px solid #444; }
         body.dark-mode .leaflet-popup-content b { color: #64b5f6 !important; } 
+
+        /* --- CSS MODAL LIST (POP-UP DAFTAR) --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 99999; display: none;
+            justify-content: center; align-items: center; backdrop-filter: blur(3px);
+        }
+        .modal-content {
+            background: white; width: 90%; max-width: 400px; max-height: 80vh;
+            border-radius: 12px; display: flex; flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden;
+        }
+        .modal-header {
+            padding: 15px; background: #0084ff; color: white; font-weight: bold;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-header.gamas-header { background: #d32f2f; }
+        .modal-header.usulan-header { background: #28a745; }
+        .close-btn { cursor: pointer; font-size: 20px; font-weight: bold; color: white; background: none; border: none; }
+        .modal-body { padding: 10px; overflow-y: auto; background: #f9f9f9; flex-grow: 1; }
+        
+        .list-item {
+            background: white; padding: 12px; margin-bottom: 8px; border-radius: 8px;
+            border-left: 4px solid #ccc; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: 0.2s; font-size: 12px; line-height: 1.4;
+        }
+        .list-item:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .list-item b { font-size: 13px; color: #333; }
+        
+        /* Dark Mode Support untuk Modal */
+        body.dark-mode .modal-content { background: #222; }
+        body.dark-mode .modal-body { background: #1a1a1a; }
+        body.dark-mode .list-item { background: #2a2a2a; color: #ddd; border-left-color: #555; }
+        body.dark-mode .list-item b { color: #fff; }
     </style>
 </head>
 <body>
@@ -160,18 +194,29 @@
         <div style="color:#999;">SURVEY</div>
     </div>
 
-    <div class="stats-box" id="totalUsulan">
+    <div class="stats-box" id="totalUsulan" onclick="tampilkanList('USULAN')" style="cursor: pointer;" title="Klik untuk lihat daftar">
         <div class="val" style="color:#28a745;">💡 0</div>
         <div style="color:#999;">USULAN</div>
     </div>
 
-    <div class="stats-box" id="totalGamas" style="border-left: 4px solid red;">
+    <div class="stats-box" id="totalGamas" onclick="tampilkanList('GAMAS')" style="border-left: 4px solid red; cursor: pointer;" title="Klik untuk lihat daftar">
         <div class="val" style="color:#ff4d4d;" id="textGamas">💥 0</div>
         <div style="color:#999;">GAMAS</div>
     </div>
 
     <div class="brand-container">
         <img src="/Logo TA New.png" alt="Logo Telkom Akses" class="logo-ta">
+    </div>
+</div>
+
+<div id="listModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header" id="modalHeader">
+            <span id="modalTitle">Daftar Item</span>
+            <button class="close-btn" onclick="tutupModal()">✖</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            </div>
     </div>
 </div>
 
@@ -192,6 +237,7 @@
     let allData = [];
     let allGamasData = [];
     let currentSheetName = "DATA";
+    let currentFilteredData = []; // Menyimpan data yang sedang terfilter untuk popup list
     
     let polylineGroup = L.featureGroup().addTo(map);
     let markerGroup = L.featureGroup().addTo(map);
@@ -247,7 +293,6 @@
         return { lat: formatCoord(lRaw, true), lon: formatCoord(loRaw, false) };
     }
 
-    // 🔥 FITUR BARU: MENGIRIM TANGGAL KE SERVER AGAR LOADING LEBIH CEPAT
     async function fetchData(isManualRefresh = false) {
         const btn = document.getElementById('btnRefresh');
         if(isManualRefresh) { btn.innerText = "⏳"; btn.disabled = true; }
@@ -264,7 +309,6 @@
         }
 
         try {
-            // URL akan otomatis menambah start dan end
             let urlSurvey = `${GAS_URL}?sheetName=${currentSheetName}`;
             if (tglMulai && tglSelesai) {
                 urlSurvey += `&start=${tglMulai}&end=${tglSelesai}`;
@@ -360,28 +404,25 @@
 
         let filtered = allData.filter(d => isDateInRange(d.Timestamp, tglMulai, tglSelesai));
         if (teknisiSel) filtered = filtered.filter(d => d.Nama === teknisiSel);
+        
+        currentFilteredData = filtered; // Menyimpan data untuk modal list
 
         let totalLaporan = 0; let totalUsulan = 0; let totalJarak = 0; 
         const perUser = {};
-        
-        // JURUS RAHASIA BIAR NGEBUT: Memori lokasi terakhir
         const lastPosUser = {}; 
 
         filtered.forEach((d) => {
             let lat = parseFloat(d.Latitude);
             let lon = parseFloat(d.Longitude);
 
-            // 1. Simpan selalu lokasi terakhir yang valid ke memori
             if (lat && lon && lat !== 0) {
                 lastPosUser[d.Nama] = { lat: lat, lon: lon };
             }
 
-            // 2. Cek apakah ini baris Foto Laporan/Usulan
             if (d.Photo_URL && d.Photo_URL.includes('t.me/c/')) {
                 let isUsulan = (d.Kategori && d.Kategori.toUpperCase() === 'USULAN');
                 if (isUsulan) totalUsulan++; else totalLaporan++;
 
-                // Kalau foto tapi koordinat 0, langsung comot dari memori tanpa loading berat!
                 if (!lat || lat === 0) {
                     if (lastPosUser[d.Nama]) {
                         lat = lastPosUser[d.Nama].lat;
@@ -403,7 +444,6 @@
                 }
             }
 
-            // 3. Gambar Garis Rute Perjalanan
             if (lat && lon && lat !== 0) {
                 if (!perUser[d.Nama]) { perUser[d.Nama] = { segments: [], lastTime: 0 }; }
                 let userData = perUser[d.Nama]; 
@@ -429,7 +469,6 @@
             }
         });
 
-        // 4. Kalkulasi Jarak & Tampilkan ke Peta
         Object.keys(perUser).forEach(nama => {
             perUser[nama].segments.forEach(seg => {
                 if (seg.coords.length > 1) {
@@ -480,6 +519,87 @@
             error.style.display = 'block'; document.querySelector('.login-box').style.animation = 'shake 0.5s';
             setTimeout(() => { document.querySelector('.login-box').style.animation = '' }, 500);
         }
+    }
+
+    // --- FITUR LIST & AUTO ZOOM KE MAPS ---
+    function tampilkanList(jenis) {
+        const modal = document.getElementById('listModal');
+        const modalHeader = document.getElementById('modalHeader');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+        
+        modalBody.innerHTML = ''; 
+        
+        if (jenis === 'USULAN') {
+            modalHeader.className = 'modal-header usulan-header';
+            modalTitle.innerText = '💡 Daftar Usulan TIF';
+            
+            let listHtml = ''; let count = 0;
+            currentFilteredData.forEach(d => {
+                if (d.Kategori && d.Kategori.toUpperCase() === 'USULAN' && d.Latitude && d.Latitude !== 0) {
+                    count++;
+                    const tgl = d.Timestamp ? new Date(d.Timestamp).toLocaleString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : '-';
+                    listHtml += `
+                        <div class="list-item" style="border-left-color: #28a745;" onclick="goToMap(${d.Latitude}, ${d.Longitude})">
+                            <b>${d.Nama || '-'}</b><br>
+                            <span style="color:#666; font-size:10px;">${tgl}</span><br>
+                            <span style="display:block; margin-top:5px;"><i>"${d.Keterangan || '-'}"</i></span>
+                        </div>
+                    `;
+                }
+            });
+            if (count === 0) listHtml = '<p style="text-align:center; color:#888; padding:20px;">Tidak ada usulan di periode ini.</p>';
+            modalBody.innerHTML = listHtml;
+            
+        } else if (jenis === 'GAMAS') {
+            modalHeader.className = 'modal-header gamas-header';
+            modalTitle.innerText = '💥 Daftar Tiket GAMAS';
+            
+            const tglMulai = document.getElementById('tglMulai').value; 
+            const tglSelesai = document.getElementById('tglSelesai').value;
+            
+            let listHtml = ''; let count = 0;
+            allGamasData.forEach(g => {
+                if (isDateInRange(g.Tanggal, tglMulai, tglSelesai)) {
+                    const pos = cleanGamasCoord(g.Lat || g.Latitude, g.Lon || g.Longitude);
+                    if (!isNaN(pos.lat) && !isNaN(pos.lon) && pos.lat !== 0) {
+                        count++;
+                        const tgl = g.Tanggal ? new Date(g.Tanggal).toLocaleString('id-ID', {day:'numeric', month:'short'}) : '-';
+                        listHtml += `
+                            <div class="list-item" style="border-left-color: #d32f2f;" onclick="goToMap(${pos.lat}, ${pos.lon})">
+                                <b>${g.Tiket || 'Tanpa Tiket'}</b> <span style="font-size:10px; color:#888;">(${tgl})</span><br>
+                                <b style="color:#d32f2f; font-size:11px;">${g.Definisi || '-'}</b><br>
+                                <span style="display:block; margin-top:5px; font-size:11px; color:#555;">Penyebab: ${g.Penyebab || '-'}</span>
+                            </div>
+                        `;
+                    }
+                }
+            });
+            if (count === 0) listHtml = '<p style="text-align:center; color:#888; padding:20px;">Tidak ada Gamas di periode ini.</p>';
+            modalBody.innerHTML = listHtml;
+        }
+        
+        modal.style.display = 'flex';
+    }
+
+    function tutupModal() {
+        document.getElementById('listModal').style.display = 'none';
+    }
+
+    function goToMap(lat, lon) {
+        tutupModal(); 
+        map.flyTo([lat, lon], 18, { animate: true, duration: 1.5 });
+        
+        setTimeout(() => {
+            map.eachLayer((layer) => {
+                if (layer instanceof L.Marker) {
+                    const pos = layer.getLatLng();
+                    if (Math.abs(pos.lat - lat) < 0.0001 && Math.abs(pos.lng - lon) < 0.0001) {
+                        layer.openPopup();
+                    }
+                }
+            });
+        }, 1500); 
     }
 </script>
 
