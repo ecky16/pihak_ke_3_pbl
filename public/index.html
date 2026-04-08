@@ -6,6 +6,7 @@
     <title>SIGAP</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
         html, body { height: 100%; margin: 0; padding: 0; transition: background 0.3s; overflow: hidden; }
@@ -210,10 +211,12 @@
 </div>
 
 <div id="listModal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="modal-header" id="modalHeader">
+    <div class="modal-header" id="modalHeader">
             <span id="modalTitle">Daftar Item</span>
-            <button class="close-btn" onclick="tutupModal()">✖</button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="btnDownloadExcel" class="btn-action" style="background: rgba(255,255,255,0.2); border: 1px solid white; padding: 4px 8px;" onclick="eksporKeExcel()">📥 Download</button>
+                <button class="close-btn" onclick="tutupModal()">✖</button>
+            </div>
         </div>
         <div class="modal-body" id="modalBody">
             </div>
