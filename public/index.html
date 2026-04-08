@@ -241,6 +241,7 @@
     let allGamasData = [];
     let currentSheetName = "DATA";
     let currentFilteredData = []; // Menyimpan data yang sedang terfilter untuk popup list
+    let currentModalType = ""; // Untuk mencatat apakah sedang buka USULAN atau GAMAS
     
     let polylineGroup = L.featureGroup().addTo(map);
     let markerGroup = L.featureGroup().addTo(map);
@@ -528,8 +529,9 @@
         }
     }
 
-    // --- FITUR LIST & AUTO ZOOM KE MAPS ---
+    // --- UPDATE FUNGSI LIST ---
     function tampilkanList(jenis) {
+        currentModalType = jenis; // Simpan jenis modal yang dibuka
         const modal = document.getElementById('listModal');
         const modalHeader = document.getElementById('modalHeader');
         const modalTitle = document.getElementById('modalTitle');
@@ -543,7 +545,6 @@
             
             let listHtml = ''; let count = 0;
             currentFilteredData.forEach(d => {
-                // FIX USULAN: Cek pakai parseFloat agar kordinat 0 tidak memblokir
                 if (d.Kategori && d.Kategori.toUpperCase() === 'USULAN' && d.Latitude && parseFloat(d.Latitude) !== 0) {
                     count++;
                     const tgl = d.Timestamp ? new Date(d.Timestamp).toLocaleString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : '-';
@@ -556,7 +557,7 @@
                     `;
                 }
             });
-            if (count === 0) listHtml = '<p style="text-align:center; color:#888; padding:20px;">Tidak ada usulan di periode ini.</p>';
+            if (count === 0) listHtml = '<p style="text-align:center; color:#888; padding:20px;">Tidak ada usulan.</p>';
             modalBody.innerHTML = listHtml;
             
         } else if (jenis === 'GAMAS') {
@@ -583,11 +584,62 @@
                     }
                 }
             });
-            if (count === 0) listHtml = '<p style="text-align:center; color:#888; padding:20px;">Tidak ada Gamas di periode ini.</p>';
+            if (count === 0) listHtml = '<p style="text-align:center; color:#888; padding:20px;">Tidak ada Gamas.</p>';
             modalBody.innerHTML = listHtml;
         }
-        
         modal.style.display = 'flex';
+    }
+
+    // --- FUNGSI DOWNLOAD EXCEL (BARU) ---
+    function eksporKeExcel() {
+        let dataToExport = [];
+        let filename = "";
+
+        if (currentModalType === 'USULAN') {
+            filename = `Data_Usulan_SIGAP_${new Date().toLocaleDateString()}.xlsx`;
+            currentFilteredData.forEach(d => {
+                if (d.Kategori && d.Kategori.toUpperCase() === 'USULAN') {
+                    dataToExport.push({
+                        "Waktu": d.Timestamp,
+                        "Nama Teknisi": d.Nama,
+                        "Isi Usulan": d.Keterangan,
+                        "Latitude": d.Latitude,
+                        "Longitude": d.Longitude,
+                        "Link Foto": d.Photo_URL
+                    });
+                }
+            });
+        } else if (currentModalType === 'GAMAS') {
+            filename = `Data_Gamas_SIGAP_${new Date().toLocaleDateString()}.xlsx`;
+            const tglMulai = document.getElementById('tglMulai').value;
+            const tglSelesai = document.getElementById('tglSelesai').value;
+            
+            allGamasData.forEach(g => {
+                if (isDateInRange(g.Tanggal, tglMulai, tglSelesai)) {
+                    dataToExport.push({
+                        "Tanggal": g.Tanggal,
+                        "Nomor Tiket": g.Tiket,
+                        "Definisi": g.Definisi,
+                        "Penyebab": g.Penyebab,
+                        "Keterangan": g.Keterangan,
+                        "Link Evidence": g.Link_Evidence || g.Link
+                    });
+                }
+            });
+        }
+
+        if (dataToExport.length === 0) {
+            alert("Tidak ada data untuk didownload!");
+            return;
+        }
+
+        // Proses buat file Excel
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan SIGAP");
+        
+        // Download file
+        XLSX.writeFile(workbook, filename);
     }
 
     function tutupModal() {
