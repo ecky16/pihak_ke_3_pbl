@@ -117,8 +117,27 @@
         .modal-header.gamas-header { background: #d32f2f; }
         .modal-header.usulan-header { background: #28a745; }
         .close-btn { cursor: pointer; font-size: 20px; font-weight: bold; color: white; background: none; border: none; }
-        .modal-body { padding: 10px; overflow-y: auto; background: #f9f9f9; flex-grow: 1; }
+/* --- UPDATE CSS MODAL LIST (BIAR BISA SCROLL) --- */
+        .modal-body { 
+            padding: 10px; 
+            overflow-y: auto; /* Mengaktifkan scroll vertikal */
+            background: #f9f9f9; 
+            flex-grow: 1; 
+            -webkit-overflow-scrolling: touch; /* Biar scroll di iPhone/Android mulus */
+            max-height: 70vh; /* Membatasi tinggi agar tidak meluber keluar layar */
+        }
         
+        .modal-content {
+            background: white; 
+            width: 95%; /* Lebih lebar sedikit untuk mobile */
+            max-width: 500px; 
+            max-height: 85vh; /* Membatasi tinggi total box modal */
+            border-radius: 12px; 
+            display: flex; 
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+            overflow: hidden; /* Memastikan header tidak ikut tergulung */
+        }        
         .list-item {
             background: white; padding: 12px; margin-bottom: 8px; border-radius: 8px;
             border-left: 4px solid #ccc; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
