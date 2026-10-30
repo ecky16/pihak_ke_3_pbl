@@ -100,40 +100,46 @@ module.exports = async (req, res) => {
             return res.status(200).send('OK');
         }
 
-        // 5. TERIMA FOTO
+        // 5. TERIMA FOTO (VERSI ANTI-TIMEOUT)
         if (msg.photo) {
-            const statusRes = await axios.post(GAS_URL, { chatId, action: 'check_status_detail' });
-            
-            if (statusRes.data.status === 'WAIT_LIVE') {
-                return res.status(200).json({
-                    method: 'sendMessage', chat_id: chatId,
-                    text: '🚫 **Foto Ditolak!**\n\nAktifkan **Live Location (8 Jam)** dulu mas.'
-                });
-            }
-            
             const photoId = msg.photo[msg.photo.length - 1].file_id;
-            try {
-                // Tampilkan pesan loading biar teknisi stay
-                await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-                    chat_id: chatId, text: '📸 *Foto sedang diupload... JANGAN BERGERAK DULU!*', parse_mode: 'Markdown'
-                });
 
-                const forward = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
-                    chat_id: CHANNEL_ID, photo: photoId, caption: `Laporan dari: ${namaTeknisi}`
-                });
-                const msgIdFromChannel = forward.data.result.message_id;
+            try {
+                // JALANKAN PARALEL: Cek status di GAS & Forward foto ke Channel BERSAMAAN
+                const [statusRes, forwardRes] = await Promise.all([
+                    axios.post(GAS_URL, { chatId, action: 'check_status_detail' }),
+                    axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
+                        chat_id: CHANNEL_ID, photo: photoId, caption: `Laporan dari: ${namaTeknisi}`
+                    })
+                ]);
+
+                // Jika Live Location ternyata belum aktif
+                if (statusRes.data && statusRes.data.status === 'WAIT_LIVE') {
+                    return res.status(200).json({
+                        method: 'sendMessage', chat_id: chatId,
+                        text: '🚫 **Foto Ditolak!**\n\nAktifkan **Live Location (8 Jam)** dulu mas.'
+                    });
+                }
+
+                // Ambil URL foto dari Channel
+                const msgIdFromChannel = forwardRes.data.result.message_id;
                 const photoUrl = `https://t.me/c/${CHANNEL_ID.replace('-100', '')}/${msgIdFromChannel}`;
                 
+                // Simpan URL foto ke Google Sheets (GAS)
                 await axios.post(GAS_URL, { chatId, foto: photoUrl, action: 'temp_photo' });
                 
+                // Langsung minta keterangan teks ke teknisi
                 return res.status(200).json({ 
                     method: 'sendMessage', chat_id: chatId, 
-                    text: `✅ **Foto Terkirim!**\n\nSilakan masukkan **Keterangan Temuan**:`,
+                    text: `✅ **Foto Terkirim!**\n\nSilakan masukkan **Keterangan Temuan** (jangan jalan dulu!):`,
                     reply_markup: { force_reply: true }
                 });
+
             } catch (error) {
+                console.error("Error upload foto:", error.message);
                 return res.status(200).json({
-                    method: 'sendMessage', chat_id: chatId, text: '❌ **Gagal upload!** Coba lagi.'
+                    method: 'sendMessage', chat_id: chatId, 
+                    text: '❌ **Gagal upload foto!** Silakan coba kirim ulang.'
                 });
             }
         }
