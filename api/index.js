@@ -5,29 +5,31 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53f
 const WEB_APP_URL = 'https://pihak-ke-3-pbl.vercel.app/gamas.html'; 
 
 // ==================================================
-// WADAH MEMORI ANTI-SPAM & ANTI-BENGONG
-// Mencegah Telegram mengirim request ganda saat delay
+// WADAH MEMORI ANTI-BENGONG / ANTI-RETRY TELEGRAM
 // ==================================================
-const processedMessages = new Set();
+const processedUpdates = new Set();
 
 module.exports = async (req, res) => {
     if (req.method !== 'POST') return res.status(200).send('OK');
-    const { message, edited_message } = req.body;
-    const msg = message || edited_message;
-    if (!msg) return res.status(200).send('OK');
-
-    // GEMBOK ANTI-RETRY: Kalau pesan ini sudah diproses 5 detik lalu, abaikan!
-    if (processedMessages.has(msg.message_id)) {
-        return res.status(200).send('OK');
+    const update = req.body;
+    
+    // PENGAMAN: Mencegah Telegram mengirim ulang (retry) saat delay
+    if (update.update_id) {
+        if (processedUpdates.has(update.update_id)) {
+            return res.status(200).send('OK');
+        }
+        processedUpdates.add(update.update_id);
+        if (processedUpdates.size > 500) processedUpdates.clear(); // Bersihkan memori biar RAM aman
     }
-    processedMessages.add(msg.message_id);
-    if (processedMessages.size > 1000) processedMessages.clear(); // Bersihkan memori agar RAM aman
+
+    const msg = update.message || update.edited_message;
+    if (!msg) return res.status(200).send('OK');
 
     const chatId = msg.chat.id.toString();
     const text = msg.text || "";
 
     try {
-        // 1. CEK WHITELIST (Super kencang: Mengambil nama & status sekaligus)
+        // 1. CEK WHITELIST & STATUS SEKALIGUS (SUPER CEPAT)
         const checkUser = await axios.post(GAS_URL, { chatId: chatId, action: 'check_user' });
         
         if (checkUser.data.status === 'unauthorized') {
@@ -38,7 +40,8 @@ module.exports = async (req, res) => {
         }
 
         const namaTeknisi = checkUser.data.nama || msg.from.first_name || "Rekan Teknisi";
-        const statusUserSekarang = checkUser.data.status; // <--- KUNCI ANTI-LEMOT: Status sudah didapat dari sini!
+        // KUNCI ANTI-LEMOT: Status sudah kita tangkap di sini, nggak perlu panggil GAS lagi nanti!
+        const statusUserSekarang = checkUser.data.status; 
 
         // --- FITUR BARU: MENU PANDUAN ---
         if (text === '/panduan' || text === '📖 PANDUAN') {
@@ -93,13 +96,12 @@ module.exports = async (req, res) => {
 
         // 3. TERIMA LIVE LOCATION
         if (msg.location) {
-            // Biarkan berjalan di background tanpa ditunggu (Fire and Forget)
             axios.post(GAS_URL, {
                 chatId: chatId, lat: msg.location.latitude, lon: msg.location.longitude,
                 action: message ? 'start_survey' : 'tracking'
             }).catch(e => console.error(e.message));
             
-            if (message) {
+            if (update.message) { // Pengecekan disesuaikan agar tidak bentrok dengan update_id
                 return res.status(200).json({
                     method: 'sendMessage', chat_id: chatId,
                     text: `✅ **Survey Aktif!**\n\n**PENTING:** Klik ikon 📎 > Location > **Share My Live Location 8 Hours**.\n\nJika bingung klik **📖 PANDUAN**.`,
@@ -117,7 +119,7 @@ module.exports = async (req, res) => {
 
         // 5. TERIMA FOTO (NGEBUT TANPA BENGONG)
         if (msg.photo) {
-            // FIX: Tidak perlu ngecek status ke Google lagi. Kita pakai data status yang sudah ditarik di Langkah 1!
+            // Kita pakai status yang sudah didapat di langkah 1 (Nggak perlu panggil check_status_detail lagi!)
             if (statusUserSekarang === 'WAIT_LIVE') {
                 return res.status(200).json({
                     method: 'sendMessage', chat_id: chatId,
@@ -132,14 +134,17 @@ module.exports = async (req, res) => {
                     chat_id: chatId, text: '📸 *Foto sedang diupload... JANGAN BERGERAK DULU!*', parse_mode: 'Markdown'
                 });
 
+                // Forward foto ke channel
                 const forward = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
                     chat_id: CHANNEL_ID, photo: photoId, caption: `Laporan dari: ${namaTeknisi}`
                 });
                 const msgIdFromChannel = forward.data.result.message_id;
                 const photoUrl = `https://t.me/c/${CHANNEL_ID.replace('-100', '')}/${msgIdFromChannel}`;
                 
+                // Simpan url foto ke GAS
                 await axios.post(GAS_URL, { chatId, foto: photoUrl, action: 'temp_photo' });
                 
+                // Kembalikan balasan sukses
                 return res.status(200).json({ 
                     method: 'sendMessage', chat_id: chatId, 
                     text: `✅ **Foto Terkirim!**\n\nSilakan masukkan **Keterangan Temuan**:`,
@@ -190,5 +195,8 @@ module.exports = async (req, res) => {
     } catch (e) {
         console.error(e.message);
     }
-    res.status(200).send('OK');
+    
+    if (!res.headersSent) {
+        res.status(200).send('OK');
+    }
 };
