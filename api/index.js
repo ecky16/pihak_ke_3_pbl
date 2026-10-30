@@ -4,29 +4,29 @@ const CHANNEL_ID = '-1003759185457';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 const WEB_APP_URL = 'https://pihak-ke-3-pbl.vercel.app/gamas.html'; 
 
-const processedUpdates = new Set();
-
 module.exports = async (req, res) => {
     if (req.method !== 'POST') return res.status(200).send('OK');
-    const update = req.body;
-    
-    // PENGAMAN: Mencegah Telegram ngirim ulang pesan
-    if (update.update_id) {
-        if (processedUpdates.has(update.update_id)) {
-            return res.status(200).send('OK');
-        }
-        processedUpdates.add(update.update_id);
-        if (processedUpdates.size > 500) processedUpdates.clear(); 
-    }
-
-    const msg = update.message || update.edited_message;
+    const { message, edited_message } = req.body;
+    const msg = message || edited_message;
     if (!msg) return res.status(200).send('OK');
 
     const chatId = msg.chat.id.toString();
     const text = msg.text || "";
 
     try {
-        // 1. MENU PANDUAN DIPINDAH KA LUHUR (Bypass GAS ngarah gancang pisan!)
+        // 1. CEK WHITELIST
+        const checkUser = await axios.post(GAS_URL, { chatId: chatId, action: 'check_user' });
+        
+        if (checkUser.data.status === 'unauthorized') {
+            return res.status(200).json({
+                method: 'sendMessage', chat_id: chatId,
+                text: "⚠️ **Akses Ditolak!**\n\nID Anda (" + chatId + ") tidak terdaftar."
+            });
+        }
+
+        const namaTeknisi = checkUser.data.nama || msg.from.first_name || "Rekan Teknisi";
+
+        // --- FITUR BARU: MENU PANDUAN ---
         if (text === '/panduan' || text === '📖 PANDUAN') {
             const panduanTeks = 
                 `📖 **PANDUAN PENGGUNAAN SIGAP**\n\n` +
@@ -50,29 +50,7 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 2. CEK WHITELIST MANGGÉ TRY-CATCH (Sangkan teu bengong lamun GAS loading)
-        let checkUser;
-        try {
-            // Pasihan wates waktu (timeout) 4 detik baé
-            checkUser = await axios.post(GAS_URL, { chatId: chatId, action: 'check_user' }, { timeout: 4000 });
-        } catch (error) {
-            return res.status(200).json({
-                method: 'sendMessage', chat_id: chatId,
-                text: "⏳ **Sistem Google nuju ngantri!**\n\nMangga cobian pencét deui dina sababaraha detik."
-            });
-        }
-        
-        if (checkUser.data.status === 'unauthorized') {
-            return res.status(200).json({
-                method: 'sendMessage', chat_id: chatId,
-                text: "⚠️ **Akses Ditolak!**\n\nID Anda (" + chatId + ") tidak terdaftar."
-            });
-        }
-
-        const namaTeknisi = checkUser.data.nama || msg.from.first_name || "Rekan Teknisi";
-        const statusUserSekarang = checkUser.data.status; 
-
-        // 3. MENU START / KEMBALI
+        // 2. MENU START / KEMBALI
         if (text === '/start' || text === 'Kembali') {
             return res.status(200).json({
                 method: 'sendMessage', chat_id: chatId,
@@ -91,8 +69,7 @@ module.exports = async (req, res) => {
         // --- LOGIKA PILIHAN MODE ---
         if (text === '📸 FOTO SURVEY' || text === '💡 FOTO USULAN') {
             const mode = text.includes('USULAN') ? 'Usulan' : 'Survey';
-            // Teu kedah nungguan GAS réngsé (Fire and forget)
-            axios.post(GAS_URL, { chatId, action: 'set_mode', mode: mode }).catch(e => console.error(e));
+            await axios.post(GAS_URL, { chatId, action: 'set_mode', mode: mode });
             return res.status(200).json({
                 method: 'sendMessage', chat_id: chatId,
                 text: `✅ Mode **${mode.toUpperCase()}** aktif!\n\nSilakan jepret foto. **Ingat: Jangan bergerak sampai upload selesai!**`,
@@ -100,14 +77,14 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 4. TERIMA LIVE LOCATION
+        // 3. TERIMA LIVE LOCATION
         if (msg.location) {
             axios.post(GAS_URL, {
                 chatId: chatId, lat: msg.location.latitude, lon: msg.location.longitude,
-                action: update.message ? 'start_survey' : 'tracking'
+                action: message ? 'start_survey' : 'tracking'
             }).catch(e => console.error(e.message));
             
-            if (update.message) {
+            if (message) {
                 return res.status(200).json({
                     method: 'sendMessage', chat_id: chatId,
                     text: `✅ **Survey Aktif!**\n\n**PENTING:** Klik ikon 📎 > Location > **Share My Live Location 8 Hours**.\n\nJika bingung klik **📖 PANDUAN**.`,
@@ -123,9 +100,11 @@ module.exports = async (req, res) => {
             return res.status(200).send('OK');
         }
 
-        // 5. TERIMA FOTO (ANTI BENGONG)
+        // 5. TERIMA FOTO
         if (msg.photo) {
-            if (statusUserSekarang === 'WAIT_LIVE') {
+            const statusRes = await axios.post(GAS_URL, { chatId, action: 'check_status_detail' });
+            
+            if (statusRes.data.status === 'WAIT_LIVE') {
                 return res.status(200).json({
                     method: 'sendMessage', chat_id: chatId,
                     text: '🚫 **Foto Ditolak!**\n\nAktifkan **Live Location (8 Jam)** dulu mas.'
@@ -134,6 +113,7 @@ module.exports = async (req, res) => {
             
             const photoId = msg.photo[msg.photo.length - 1].file_id;
             try {
+                // Tampilkan pesan loading biar teknisi stay
                 await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
                     chat_id: chatId, text: '📸 *Foto sedang diupload... JANGAN BERGERAK DULU!*', parse_mode: 'Markdown'
                 });
@@ -144,8 +124,7 @@ module.exports = async (req, res) => {
                 const msgIdFromChannel = forward.data.result.message_id;
                 const photoUrl = `https://t.me/c/${CHANNEL_ID.replace('-100', '')}/${msgIdFromChannel}`;
                 
-                // Fire and forget ka Google, langsung wé kirim waleran ka pamaké
-                axios.post(GAS_URL, { chatId, foto: photoUrl, action: 'temp_photo' }).catch(e => console.error(e));
+                await axios.post(GAS_URL, { chatId, foto: photoUrl, action: 'temp_photo' });
                 
                 return res.status(200).json({ 
                     method: 'sendMessage', chat_id: chatId, 
@@ -165,14 +144,18 @@ module.exports = async (req, res) => {
                 chat_id: chatId, text: '⏳ Menyimpan data...'
             });
             const messageId = responseMsg.data.result.message_id;
-            
-            // Simpen data ka GAS di kasang tukang, ulah nungguan heula
-            axios.post(GAS_URL, { chatId, keterangan: text, action: 'update_keterangan' }).catch(e => console.error(e));
-            
-            return res.status(200).json({
-                method: 'editMessageText', chat_id: chatId, message_id: messageId,
-                text: `✅ **Data Tersimpan!**\n\nKeterangan: "${text}"\n\nSilakan lanjut patroli. 🚀`
-            });
+            try {
+                await axios.post(GAS_URL, { chatId, keterangan: text, action: 'update_keterangan' });
+                await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+                    chat_id: chatId, message_id: messageId,
+                    text: `✅ **Data Tersimpan!**\n\nKeterangan: "${text}"\n\nSilakan lanjut patroli. 🚀`
+                });
+            } catch (err) {
+                await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+                    chat_id: chatId, message_id: messageId, text: `❌ Gagal menyimpan!`
+                });
+            }
+            return res.status(200).send('OK');
         }
 
         // 7. SELESAI
@@ -193,8 +176,5 @@ module.exports = async (req, res) => {
     } catch (e) {
         console.error(e.message);
     }
-    
-    if (!res.headersSent) {
-        res.status(200).send('OK');
-    }
+    res.status(200).send('OK');
 };
