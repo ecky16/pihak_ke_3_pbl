@@ -4,17 +4,30 @@ const CHANNEL_ID = '-1003759185457';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 const WEB_APP_URL = 'https://pihak-ke-3-pbl.vercel.app/gamas.html'; 
 
+// ==================================================
+// WADAH MEMORI ANTI-SPAM & ANTI-BENGONG
+// Mencegah Telegram mengirim request ganda saat delay
+// ==================================================
+const processedMessages = new Set();
+
 module.exports = async (req, res) => {
     if (req.method !== 'POST') return res.status(200).send('OK');
     const { message, edited_message } = req.body;
     const msg = message || edited_message;
     if (!msg) return res.status(200).send('OK');
 
+    // GEMBOK ANTI-RETRY: Kalau pesan ini sudah diproses 5 detik lalu, abaikan!
+    if (processedMessages.has(msg.message_id)) {
+        return res.status(200).send('OK');
+    }
+    processedMessages.add(msg.message_id);
+    if (processedMessages.size > 1000) processedMessages.clear(); // Bersihkan memori agar RAM aman
+
     const chatId = msg.chat.id.toString();
     const text = msg.text || "";
 
     try {
-        // 1. CEK WHITELIST
+        // 1. CEK WHITELIST (Super kencang: Mengambil nama & status sekaligus)
         const checkUser = await axios.post(GAS_URL, { chatId: chatId, action: 'check_user' });
         
         if (checkUser.data.status === 'unauthorized') {
@@ -25,6 +38,7 @@ module.exports = async (req, res) => {
         }
 
         const namaTeknisi = checkUser.data.nama || msg.from.first_name || "Rekan Teknisi";
+        const statusUserSekarang = checkUser.data.status; // <--- KUNCI ANTI-LEMOT: Status sudah didapat dari sini!
 
         // --- FITUR BARU: MENU PANDUAN ---
         if (text === '/panduan' || text === '📖 PANDUAN') {
@@ -79,6 +93,7 @@ module.exports = async (req, res) => {
 
         // 3. TERIMA LIVE LOCATION
         if (msg.location) {
+            // Biarkan berjalan di background tanpa ditunggu (Fire and Forget)
             axios.post(GAS_URL, {
                 chatId: chatId, lat: msg.location.latitude, lon: msg.location.longitude,
                 action: message ? 'start_survey' : 'tracking'
@@ -100,11 +115,10 @@ module.exports = async (req, res) => {
             return res.status(200).send('OK');
         }
 
-        // 5. TERIMA FOTO
+        // 5. TERIMA FOTO (NGEBUT TANPA BENGONG)
         if (msg.photo) {
-            const statusRes = await axios.post(GAS_URL, { chatId, action: 'check_status_detail' });
-            
-            if (statusRes.data.status === 'WAIT_LIVE') {
+            // FIX: Tidak perlu ngecek status ke Google lagi. Kita pakai data status yang sudah ditarik di Langkah 1!
+            if (statusUserSekarang === 'WAIT_LIVE') {
                 return res.status(200).json({
                     method: 'sendMessage', chat_id: chatId,
                     text: '🚫 **Foto Ditolak!**\n\nAktifkan **Live Location (8 Jam)** dulu mas.'
