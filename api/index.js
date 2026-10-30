@@ -4,29 +4,26 @@ const CHANNEL_ID = '-1003759185457';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxeAkZl8kgM9KYATer4C53fb3LsUuwa__RE7fpdDnkXOz6nR2TTsH2F8_LjvBUyOTCEwQ/exec';
 const WEB_APP_URL = 'https://pihak-ke-3-pbl.vercel.app/gamas.html'; 
 
+const processedUpdates = new Set();
+
 module.exports = async (req, res) => {
     if (req.method !== 'POST') return res.status(200).send('OK');
-    const { message, edited_message } = req.body;
-    const msg = message || edited_message;
+    const update = req.body;
+    
+    if (update.update_id) {
+        if (processedUpdates.has(update.update_id)) return res.status(200).send('OK');
+        processedUpdates.add(update.update_id);
+        if (processedUpdates.size > 500) processedUpdates.clear(); 
+    }
+
+    const msg = update.message || update.edited_message;
     if (!msg) return res.status(200).send('OK');
 
     const chatId = msg.chat.id.toString();
     const text = msg.text || "";
 
     try {
-        // 1. CEK WHITELIST
-        const checkUser = await axios.post(GAS_URL, { chatId: chatId, action: 'check_user' });
-        
-        if (checkUser.data.status === 'unauthorized') {
-            return res.status(200).json({
-                method: 'sendMessage', chat_id: chatId,
-                text: "⚠️ **Akses Ditolak!**\n\nID Anda (" + chatId + ") tidak terdaftar."
-            });
-        }
-
-        const namaTeknisi = checkUser.data.nama || msg.from.first_name || "Rekan Teknisi";
-
-        // --- FITUR BARU: MENU PANDUAN ---
+        // 1. MENU PANDUAN INSTAN (Bypass Google Sheets agar kilat)
         if (text === '/panduan' || text === '📖 PANDUAN') {
             const panduanTeks = 
                 `📖 **PANDUAN PENGGUNAAN SIGAP**\n\n` +
@@ -50,7 +47,28 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 2. MENU START / KEMBALI
+        // 2. CEK WHITELIST (Dengan pengaman 4 detik)
+        let checkUser;
+        try {
+            checkUser = await axios.post(GAS_URL, { chatId: chatId, action: 'check_user' }, { timeout: 4000 });
+        } catch (error) {
+            return res.status(200).json({
+                method: 'sendMessage', chat_id: chatId,
+                text: "⏳ **Sistem Google sedang loading!**\n\nMohon tunggu beberapa detik dan coba lagi."
+            });
+        }
+        
+        if (checkUser.data.status === 'unauthorized') {
+            return res.status(200).json({
+                method: 'sendMessage', chat_id: chatId,
+                text: "⚠️ **Akses Ditolak!**\n\nID Anda (" + chatId + ") tidak terdaftar."
+            });
+        }
+
+        const namaTeknisi = checkUser.data.nama || msg.from.first_name || "Rekan Teknisi";
+        const statusUserSekarang = checkUser.data.status; 
+
+        // 3. MENU START / KEMBALI
         if (text === '/start' || text === 'Kembali') {
             return res.status(200).json({
                 method: 'sendMessage', chat_id: chatId,
@@ -66,10 +84,10 @@ module.exports = async (req, res) => {
             });
         }
 
-        // --- LOGIKA PILIHAN MODE ---
+        // 4. LOGIKA PILIHAN MODE
         if (text === '📸 FOTO SURVEY' || text === '💡 FOTO USULAN') {
             const mode = text.includes('USULAN') ? 'Usulan' : 'Survey';
-            await axios.post(GAS_URL, { chatId, action: 'set_mode', mode: mode });
+            axios.post(GAS_URL, { chatId, action: 'set_mode', mode: mode }).catch(e => console.error(e));
             return res.status(200).json({
                 method: 'sendMessage', chat_id: chatId,
                 text: `✅ Mode **${mode.toUpperCase()}** aktif!\n\nSilakan jepret foto. **Ingat: Jangan bergerak sampai upload selesai!**`,
@@ -77,14 +95,14 @@ module.exports = async (req, res) => {
             });
         }
 
-        // 3. TERIMA LIVE LOCATION
+        // 5. TERIMA LIVE LOCATION
         if (msg.location) {
             axios.post(GAS_URL, {
                 chatId: chatId, lat: msg.location.latitude, lon: msg.location.longitude,
-                action: message ? 'start_survey' : 'tracking'
+                action: update.message ? 'start_survey' : 'tracking'
             }).catch(e => console.error(e.message));
             
-            if (message) {
+            if (update.message) {
                 return res.status(200).json({
                     method: 'sendMessage', chat_id: chatId,
                     text: `✅ **Survey Aktif!**\n\n**PENTING:** Klik ikon 📎 > Location > **Share My Live Location 8 Hours**.\n\nJika bingung klik **📖 PANDUAN**.`,
@@ -100,11 +118,9 @@ module.exports = async (req, res) => {
             return res.status(200).send('OK');
         }
 
-        // 5. TERIMA FOTO
+        // 6. TERIMA FOTO
         if (msg.photo) {
-            const statusRes = await axios.post(GAS_URL, { chatId, action: 'check_status_detail' });
-            
-            if (statusRes.data.status === 'WAIT_LIVE') {
+            if (statusUserSekarang === 'WAIT_LIVE') {
                 return res.status(200).json({
                     method: 'sendMessage', chat_id: chatId,
                     text: '🚫 **Foto Ditolak!**\n\nAktifkan **Live Location (8 Jam)** dulu mas.'
@@ -113,7 +129,6 @@ module.exports = async (req, res) => {
             
             const photoId = msg.photo[msg.photo.length - 1].file_id;
             try {
-                // Tampilkan pesan loading biar teknisi stay
                 await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
                     chat_id: chatId, text: '📸 *Foto sedang diupload... JANGAN BERGERAK DULU!*', parse_mode: 'Markdown'
                 });
@@ -124,7 +139,7 @@ module.exports = async (req, res) => {
                 const msgIdFromChannel = forward.data.result.message_id;
                 const photoUrl = `https://t.me/c/${CHANNEL_ID.replace('-100', '')}/${msgIdFromChannel}`;
                 
-                await axios.post(GAS_URL, { chatId, foto: photoUrl, action: 'temp_photo' });
+                axios.post(GAS_URL, { chatId, foto: photoUrl, action: 'temp_photo' }).catch(e => console.error(e));
                 
                 return res.status(200).json({ 
                     method: 'sendMessage', chat_id: chatId, 
@@ -138,27 +153,22 @@ module.exports = async (req, res) => {
             }
         }
 
-        // 6. TERIMA KETERANGAN TEKS
+        // 7. TERIMA KETERANGAN TEKS
         if (text && !text.includes('/') && !['🏁 SELESAI','📸 FOTO SURVEY','💡 FOTO USULAN','Kembali','📖 PANDUAN'].includes(text)) {
             const responseMsg = await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
                 chat_id: chatId, text: '⏳ Menyimpan data...'
             });
             const messageId = responseMsg.data.result.message_id;
-            try {
-                await axios.post(GAS_URL, { chatId, keterangan: text, action: 'update_keterangan' });
-                await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
-                    chat_id: chatId, message_id: messageId,
-                    text: `✅ **Data Tersimpan!**\n\nKeterangan: "${text}"\n\nSilakan lanjut patroli. 🚀`
-                });
-            } catch (err) {
-                await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
-                    chat_id: chatId, message_id: messageId, text: `❌ Gagal menyimpan!`
-                });
-            }
-            return res.status(200).send('OK');
+            
+            axios.post(GAS_URL, { chatId, keterangan: text, action: 'update_keterangan' }).catch(e => console.error(e));
+            
+            return res.status(200).json({
+                method: 'editMessageText', chat_id: chatId, message_id: messageId,
+                text: `✅ **Data Tersimpan!**\n\nKeterangan: "${text}"\n\nSilakan lanjut patroli. 🚀`
+            });
         }
 
-        // 7. SELESAI
+        // 8. SELESAI
         if (text === '🏁 SELESAI') {
             axios.post(GAS_URL, { chatId, action: 'stop_survey' }).catch(e => console.error(e.message));
             return res.status(200).json({
@@ -176,5 +186,8 @@ module.exports = async (req, res) => {
     } catch (e) {
         console.error(e.message);
     }
-    res.status(200).send('OK');
+    
+    if (!res.headersSent) {
+        res.status(200).send('OK');
+    }
 };
